@@ -71,6 +71,19 @@ auth:
 scaffolder:
   # see https://backstage.io/docs/features/software-templates/configuration for software template options
 
+inhouse-cmdb:
+  writer:
+    type: sqlite
+    sqlite:
+      filename: /tmp/backstage-inhouse-cmdb.db
+  catalogSource:
+    enabled: true
+    pollIntervalSeconds: 5
+    backend:
+      type: sqlite
+      sqlite:
+        filename: /tmp/backstage-inhouse-cmdb.db
+
 catalog:
   import:
     entityFilename: catalog-info.yaml
@@ -85,6 +98,11 @@ catalog:
     # Local example template
     - type: file
       target: ../../examples/template/template.yaml
+      rules:
+        - allow: [Template]
+
+    - type: file
+      target: ../../examples/template/inhouse-cmdb-template.yaml
       rules:
         - allow: [Template]
 

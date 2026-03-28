@@ -28,6 +28,21 @@ backend:
       #   ca: # if you have a CA file and want to verify it you can uncomment this section
       #     $file: <file-path>/ca/server.crt
 
+inhouse-cmdb:
+  writer:
+    type: dynamodb
+    dynamodb:
+      region: ${AWS_REGION}
+      tableName: ${INHOUSE_CMDB_TABLE}
+  catalogSource:
+    enabled: true
+    pollIntervalSeconds: 15
+    backend:
+      type: dynamodb
+      dynamodb:
+        region: ${AWS_REGION}
+        tableName: ${INHOUSE_CMDB_TABLE}
+
 auth:
   providers:
     guest: {}
@@ -45,6 +60,11 @@ catalog:
     # Local example template
     - type: file
       target: ./examples/template/template.yaml
+      rules:
+        - allow: [Template]
+
+    - type: file
+      target: ./examples/template/inhouse-cmdb-template.yaml
       rules:
         - allow: [Template]
 
