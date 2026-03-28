@@ -19,6 +19,65 @@ spec:
   system: examples
   providesApis: [example-grpc-api]
 ---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: guest-portal-web
+  title: Guest Portal Web
+  description: Frontend for the guest portal project.
+  annotations:
+    kabang.cloud/project: guest-portal
+spec:
+  type: website
+  lifecycle: production
+  owner: guests
+  system: examples
+  dependsOn: [component:default/guest-portal-api]
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: guest-portal-api
+  title: Guest Portal API
+  description: Backend API for the guest portal project.
+  annotations:
+    kabang.cloud/project: guest-portal
+spec:
+  type: service
+  lifecycle: production
+  owner: guests
+  system: examples
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: guest-ops-console-ui
+  title: Guest Ops Console UI
+  description: Operator-facing UI for the guest ops console project.
+  annotations:
+    kabang.cloud/project: guest-ops-console
+spec:
+  type: website
+  lifecycle: production
+  owner: guests
+  system: examples
+  dependsOn: [component:default/guest-ops-console-api]
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: guest-ops-console-api
+  title: Guest Ops Console API
+  description: Backend API for the guest ops console project.
+  annotations:
+    kabang.cloud/project: guest-ops-console
+spec:
+  type: service
+  lifecycle: production
+  owner: guests
+  system: examples
+  dependsOn: [component:default/guest-portal-api]
+---
 # https://backstage.io/docs/features/software-catalog/descriptor-format#kind-api
 apiVersion: backstage.io/v1alpha1
 kind: API

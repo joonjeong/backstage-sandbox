@@ -6347,9 +6347,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@internal/plugin-catalog-backend-module-project@workspace:*, @internal/plugin-catalog-backend-module-project@workspace:plugins/catalog-backend-module-project":
+"@internal/plugin-catalog-backend-module-inhouse@workspace:*, @internal/plugin-catalog-backend-module-inhouse@workspace:plugins/catalog-backend-module-inhouse":
   version: 0.0.0-use.local
-  resolution: "@internal/plugin-catalog-backend-module-project@workspace:plugins/catalog-backend-module-project"
+  resolution: "@internal/plugin-catalog-backend-module-inhouse@workspace:plugins/catalog-backend-module-inhouse"
   dependencies:
     "@backstage/backend-plugin-api": "npm:^1.8.0"
     "@backstage/catalog-model": "npm:^1.7.7"
@@ -16477,7 +16477,7 @@ __metadata:
     "@backstage/plugin-techdocs-backend": "npm:^2.1.5"
     "@internal/plugin-catalog-backend-module-database": "workspace:*"
     "@internal/plugin-catalog-backend-module-dynamodb": "workspace:*"
-    "@internal/plugin-catalog-backend-module-project": "workspace:*"
+    "@internal/plugin-catalog-backend-module-inhouse": "workspace:*"
     app: "link:../app"
     node-gyp: "npm:^10.0.0"
     pg: "npm:^8.11.3"
