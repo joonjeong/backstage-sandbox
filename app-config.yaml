@@ -76,7 +76,7 @@ catalog:
     entityFilename: catalog-info.yaml
     pullRequestBranchName: backstage-integration
   rules:
-    - allow: [Component, System, API, Resource, Location]
+    - allow: [Component, System, API, Resource, Location, Project]
   locations:
     # Local example data, file locations are relative to the backend process, typically `packages/backend`
     - type: file
@@ -94,12 +94,11 @@ catalog:
       rules:
         - allow: [User, Group]
 
-    # Preferred database custom processor example. Bootstrap a Location entity
-    # file, then define spec.type: dynamodb or spec.type: database inline there.
-    # - type: file
-    #   target: ../../examples/database-locations.yaml
-    #   rules:
-    #     - allow: [Location, Component]
+    # Sample sqlite-backed custom catalog data using the database processor.
+    - type: file
+      target: ../../examples/database-locations.yaml
+      rules:
+        - allow: [Location]
 
     ## Uncomment these lines to add more example data
     # - type: url

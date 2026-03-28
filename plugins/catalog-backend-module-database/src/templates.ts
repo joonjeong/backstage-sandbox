@@ -60,22 +60,36 @@ function normalizeMappedEntity(
   entity: Entity,
   locationKey: string,
 ): Entity {
+  const annotations = Object.fromEntries(
+    Object.entries(entity.metadata.annotations ?? {}).map(([key, value]) => [
+      key,
+      String(value),
+    ]),
+  );
+  const labels = Object.fromEntries(
+    Object.entries(entity.metadata.labels ?? {}).map(([key, value]) => [
+      key,
+      String(value),
+    ]),
+  );
+
   return {
     ...entity,
     metadata: {
       ...entity.metadata,
+      labels: Object.keys(labels).length > 0 ? labels : entity.metadata.labels,
       annotations: {
-        ...entity.metadata.annotations,
+        ...annotations,
         'metadata.backstage.io/source-name': sourceName,
-        'backstage.io/managed-by-location':
-          entity.metadata.annotations?.['backstage.io/managed-by-location'] ??
+        'backstage.io/managed-by-location': annotations[
+          'backstage.io/managed-by-location'
+        ] ??
           `url:https://catalog-database-module/${encodeURIComponent(
             sourceName,
           )}/${encodeURIComponent(locationKey)}`,
-        'backstage.io/managed-by-origin-location':
-          entity.metadata.annotations?.[
-            'backstage.io/managed-by-origin-location'
-          ] ??
+        'backstage.io/managed-by-origin-location': annotations[
+          'backstage.io/managed-by-origin-location'
+        ] ??
           `url:https://catalog-database-module/${encodeURIComponent(
             sourceName,
           )}/${encodeURIComponent(locationKey)}`,

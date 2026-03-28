@@ -36,6 +36,7 @@ backend.add(
 );
 backend.add(import('@internal/plugin-catalog-backend-module-dynamodb'));
 backend.add(import('@internal/plugin-catalog-backend-module-database'));
+backend.add(import('@internal/plugin-catalog-backend-module-project'));
 
 // See https://backstage.io/docs/features/software-catalog/configuration#subscribing-to-catalog-errors
 backend.add(import('@backstage/plugin-catalog-backend-module-logs'));

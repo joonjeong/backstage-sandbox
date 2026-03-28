@@ -1,60 +1,29 @@
 apiVersion: backstage.io/v1alpha1
 kind: Location
 metadata:
-  name: external-projects-dynamodb
-spec:
-  type: dynamodb
-  target: external-projects-dynamodb
-  x-dynamodb:
-    region: us-east-1
-    tableName: replace-me-external-metadata
-    partitionKey: SOURCE#projects
-    sortKeyPrefix: PROJECT#
-    updatedAtField: modified_at
-    locationKey: 'external:{{ item.entityRef }}'
-    entity:
-      apiVersion: backstage.io/v1alpha1
-      kind: Component
-      metadata:
-        name: '{{ item.project_code }}'
-        title: '{{ item.project_name }}'
-        description: '{{ item.project_description }}'
-        annotations:
-          example.com/source-pk: '{{ item.pk }}'
-      spec:
-        type: external
-        lifecycle: '{{ item.lifecycle }}'
-        owner: 'group:default/{{ item.owner_group }}'
-        system: '{{ item.system }}'
----
-apiVersion: backstage.io/v1alpha1
-kind: Location
-metadata:
-  name: external-projects-sqlite
+  name: sample-projects-sqlite
 spec:
   type: database
-  target: external-projects-sqlite
+  target: sample-projects-sqlite
   x-database:
     client: better-sqlite3
     connection:
-      filename: /tmp/external-project-metadata.db
-    tableName: external_project_metadata
+      filename: ../../examples/project-metadata.db
+    tableName: project_metadata
     where:
       - column: source_name
-        equals: external-projects
+        equals: sample-projects
     updatedAtField: modified_at
-    locationKey: 'external:{{ item.entityRef }}'
+    locationKey: 'sample:{{ item.entityRef }}'
     entity:
-      apiVersion: backstage.io/v1alpha1
-      kind: Component
+      apiVersion: kabang.cloud/v1
+      kind: Project
       metadata:
-        name: '{{ item.project_code }}'
-        title: '{{ item.project_name }}'
+        name: '{{ item.project_name }}'
+        title: '{{ item.project_title }}'
         description: '{{ item.project_description }}'
         annotations:
           example.com/source-row-id: '{{ item.id }}'
       spec:
-        type: external
-        lifecycle: '{{ item.lifecycle }}'
-        owner: 'group:default/{{ item.owner_group }}'
-        system: '{{ item.system }}'
+        owner: '{{ item.owner_ref }}'
+        team: '{{ item.team_ref }}'

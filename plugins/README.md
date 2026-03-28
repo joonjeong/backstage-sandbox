@@ -19,5 +19,7 @@ Current Inhouse CMDB package layout:
   Generic DynamoDB-backed catalog location module
 - `catalog-backend-module-database`
   Generic Knex/SQL-backed catalog location module
+- `catalog-backend-module-inhouse`
+  Inhouse `kabang.cloud/v1` `Project` catalog backend module
 
 See each package `README.md` for ownership boundaries and edit guidance.
