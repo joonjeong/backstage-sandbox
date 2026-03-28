@@ -15,13 +15,9 @@ separated from the stock Backstage app wiring in `packages/backend`.
 
 Current Inhouse CMDB package layout:
 
-- `inhouse-cmdb-backend`
-  HTTP backend plugin for `/api/inhouse-cmdb/*`
-- `inhouse-cmdb-backend-module-catalog`
-  Catalog source module that registers the entity provider
-- `inhouse-cmdb-backend-module-scaffolder`
-  Scaffolder module that registers `inhouse-cmdb:append`
-- `inhouse-cmdb-node`
-  Shared node-library for repositories, provider logic, parsing, and tests
+- `catalog-backend-module-dynamodb`
+  Generic DynamoDB-backed catalog location module
+- `catalog-backend-module-database`
+  Generic Knex/SQL-backed catalog location module
 
 See each package `README.md` for ownership boundaries and edit guidance.

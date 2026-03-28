@@ -71,19 +71,6 @@ auth:
 scaffolder:
   # see https://backstage.io/docs/features/software-templates/configuration for software template options
 
-inhouse-cmdb:
-  writer:
-    type: sqlite
-    sqlite:
-      filename: /tmp/backstage-inhouse-cmdb.db
-  catalogSource:
-    enabled: true
-    pollIntervalSeconds: 5
-    backend:
-      type: sqlite
-      sqlite:
-        filename: /tmp/backstage-inhouse-cmdb.db
-
 catalog:
   import:
     entityFilename: catalog-info.yaml
@@ -101,16 +88,18 @@ catalog:
       rules:
         - allow: [Template]
 
-    - type: file
-      target: ../../examples/template/inhouse-cmdb-template.yaml
-      rules:
-        - allow: [Template]
-
     # Local example organizational data
     - type: file
       target: ../../examples/org.yaml
       rules:
         - allow: [User, Group]
+
+    # Preferred database custom processor example. Bootstrap a Location entity
+    # file, then define spec.type: dynamodb or spec.type: database inline there.
+    # - type: file
+    #   target: ../../examples/database-locations.yaml
+    #   rules:
+    #     - allow: [Location, Component]
 
     ## Uncomment these lines to add more example data
     # - type: url

@@ -28,21 +28,6 @@ backend:
       #   ca: # if you have a CA file and want to verify it you can uncomment this section
       #     $file: <file-path>/ca/server.crt
 
-inhouse-cmdb:
-  writer:
-    type: dynamodb
-    dynamodb:
-      region: ${AWS_REGION}
-      tableName: ${INHOUSE_CMDB_TABLE}
-  catalogSource:
-    enabled: true
-    pollIntervalSeconds: 15
-    backend:
-      type: dynamodb
-      dynamodb:
-        region: ${AWS_REGION}
-        tableName: ${INHOUSE_CMDB_TABLE}
-
 auth:
   providers:
     guest: {}
@@ -63,13 +48,15 @@ catalog:
       rules:
         - allow: [Template]
 
-    - type: file
-      target: ./examples/template/inhouse-cmdb-template.yaml
-      rules:
-        - allow: [Template]
-
     # Local example organizational data
     - type: file
       target: ./examples/org.yaml
       rules:
         - allow: [User, Group]
+
+    # Preferred database custom processor example. Bootstrap a Location entity
+    # file, then define spec.type: dynamodb or spec.type: database inline there.
+    # - type: file
+    #   target: ./examples/database-locations.yaml
+    #   rules:
+    #     - allow: [Location, Component]
