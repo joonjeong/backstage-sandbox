@@ -1,15 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Card, CardContent, Chip, CircularProgress, makeStyles, Typography } from '@material-ui/core';
+import { Card, CardContent, Chip, makeStyles, Typography } from '@material-ui/core';
 import { InfoCard, Table, type TableColumn } from '@backstage/core-components';
 import OpenInNewIcon from '@material-ui/icons/OpenInNew';
-import { useApi } from '@backstage/core-plugin-api';
-import {
-  catalogApiRef,
-  useEntity,
-} from '@backstage/plugin-catalog-react';
 import {
   parseEntityRef,
-  type Entity,
 } from '@backstage/catalog-model';
 import {
   Background,
@@ -25,13 +19,16 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
-  belongsToProject,
-  buildProjectServiceMapModel,
-  getProjectEntitiesForKindFilter,
   type ProjectServiceMapModel,
   type ServiceMapNode,
   type ServiceMapZone,
 } from './ProjectServiceMap.model';
+import {
+  getDefaultSelectedNodeId,
+  getSelectedNodeSummary,
+  getVisibleNodeRows,
+  type ServiceMapVisibleNodeRow,
+} from './ProjectServiceMap.view-model';
 
 const useStyles = makeStyles(theme => ({
   section: {
@@ -1015,146 +1012,32 @@ export function buildFlow(
   };
 }
 
-function getSelectedNodeSummary(
-  model: ProjectServiceMapModel,
-  selectedNodeId?: string,
-) {
-  if (!selectedNodeId) {
-    return undefined;
-  }
-
-  const node = model.nodes.find(candidate => candidate.id === selectedNodeId);
-  if (!node) {
-    return undefined;
-  }
-
-  const incoming = model.edges.filter(edge => edge.target === selectedNodeId);
-  const outgoing = model.edges.filter(edge => edge.source === selectedNodeId);
-  const zone =
-    model.zones.find(candidate => candidate.id === node.zone)?.title ?? node.zone;
-
-  return {
-    node,
-    zone,
-    incomingCount: incoming.length,
-    outgoingCount: outgoing.length,
-  };
-}
-
-function getVisibleNodeRows(model: ProjectServiceMapModel) {
-  return model.nodes
-    .filter(node => node.kind === 'component')
-    .map(node => {
-      const incomingCount = model.edges.filter(edge => edge.target === node.id).length;
-      const outgoingCount = model.edges.filter(edge => edge.source === node.id).length;
-      const zone = model.zones.find(candidate => candidate.id === node.zone)?.title ?? node.zone;
-
-      return {
-        id: node.id,
-        title: node.title,
-        subtitle: node.subtitle,
-        zone,
-        exposure: node.exposure ?? 'private',
-        incomingCount,
-        outgoingCount,
-        entityRef: node.entityRef,
-        componentKind: node.componentKind,
-      };
-    });
-}
-
 export function ProjectServiceMap({
+  model,
   inventoryOnly = false,
 }: {
+  model: ProjectServiceMapModel;
   inventoryOnly?: boolean;
 }) {
   const classes = useStyles();
-  const { entity } = useEntity();
-  const catalogApi = useApi(catalogApiRef);
-  const [model, setModel] = useState<ProjectServiceMapModel | undefined>();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | undefined>();
-  const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
+  const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>(() =>
+    getDefaultSelectedNodeId(model),
+  );
 
   useEffect(() => {
-    let cancelled = false;
+    const hasSelectedNode =
+      selectedNodeId &&
+      model.nodes.some(candidate => candidate.id === selectedNodeId);
+    const nextSelectedNodeId = hasSelectedNode
+      ? selectedNodeId
+      : getDefaultSelectedNodeId(model);
 
-    async function load() {
-      setLoading(true);
-      setError(undefined);
-
-      try {
-        const [componentResponse, edgeStackResponse] = await Promise.all([
-          catalogApi.getEntities({
-            filter: getProjectEntitiesForKindFilter(entity as Entity, 'Component'),
-          }),
-          catalogApi.getEntities({
-            filter: { kind: 'EdgeStack' },
-          }),
-        ]);
-
-        if (cancelled) {
-          return;
-        }
-
-        const nextModel = buildProjectServiceMapModel(entity as Entity, [
-          ...edgeStackResponse.items.filter(candidate =>
-            belongsToProject(candidate, entity as Entity),
-          ),
-          ...componentResponse.items,
-        ]);
-        setModel(nextModel);
-        const firstNode =
-          nextModel.nodes.find(node => node.catalogKind === 'EdgeStack') ??
-          nextModel.nodes.find(node => node.kind === 'component') ??
-          nextModel.nodes[0];
-        setSelectedNodeId(firstNode?.id);
-      } catch (loadError) {
-        if (cancelled) {
-          return;
-        }
-
-        setError(
-          loadError instanceof Error
-            ? loadError
-            : new Error('Failed to load project components from the catalog'),
-        );
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
+    if (nextSelectedNodeId !== selectedNodeId) {
+      setSelectedNodeId(nextSelectedNodeId);
     }
+  }, [model, selectedNodeId]);
 
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [catalogApi, entity]);
-
-  if (loading) {
-    return (
-      <div className={classes.wrapper}>
-        <div className={classes.loading}>
-          <CircularProgress />
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card variant="outlined" className={classes.error}>
-        <CardContent>
-          <Typography variant="h6">Service map could not be loaded</Typography>
-          <Typography color="textSecondary">{error.message}</Typography>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!model || model.nodes.length <= 1) {
+  if (model.nodes.length <= 1) {
     return (
       <Card variant="outlined">
         <CardContent className={classes.empty}>
@@ -1172,7 +1055,7 @@ export function ProjectServiceMap({
   const selectedSummary = getSelectedNodeSummary(model, selectedNodeId);
   const selectedDetails = selectedSummary?.node.details ?? [];
   const visibleNodeRows = getVisibleNodeRows(model);
-  const inventoryColumns: TableColumn<(typeof visibleNodeRows)[number]>[] = [
+  const inventoryColumns: TableColumn<ServiceMapVisibleNodeRow>[] = [
     {
       title: 'Name',
       render: row => (

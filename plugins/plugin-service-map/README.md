@@ -1,17 +1,24 @@
 # plugin-service-map
 
-Project 서비스 맵 frontend plugin package.
+Project 서비스 맵 frontend visualization package.
 
 Current exports:
 
 - `ProjectServiceMap`
+- `buildProjectServiceMapModel`
+- `getProjectEntitiesForKindFilter`
+- `belongsToProject`
 
 This package contains:
 
-- service map rendering
+- reusable service map rendering
 - selected component panel
 - inventory table view
 - service map layout/model helpers
+
+Catalog API wiring is intentionally outside this package. App-level containers are
+expected to fetch catalog entities and pass a `ProjectServiceMapModel` into
+`ProjectServiceMap`.
 
 문서:
 

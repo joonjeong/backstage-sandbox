@@ -10,6 +10,7 @@
 - 선택 컴포넌트 패널
 - inventory 표
 - 서비스 맵 레이아웃/뷰 모델
+- catalog-neutral public API
 
 비범위:
 
@@ -30,6 +31,9 @@
 현재 export:
 
 - `ProjectServiceMap`
+- `buildProjectServiceMapModel`
+- `getProjectEntitiesForKindFilter`
+- `belongsToProject`
 
 의도된 사용 방식:
 
@@ -37,10 +41,10 @@
 import { ProjectServiceMap } from '@internal/plugin-service-map';
 ```
 
-`ProjectEntityPage`에서 다음처럼 사용한다.
+`ProjectEntityPage`에서는 app-level container가 catalog를 조회한 뒤 다음처럼 사용한다.
 
-- Overview: `ProjectServiceMap`
-- Inventory 탭: `ProjectServiceMap inventoryOnly`
+- Overview: `ProjectServiceMapContainer -> ProjectServiceMap`
+- Inventory 탭: `ProjectServiceMapContainer inventoryOnly -> ProjectServiceMap`
 
 ## 내부 구성
 
@@ -48,12 +52,15 @@ import { ProjectServiceMap } from '@internal/plugin-service-map';
 
 책임:
 
-- catalog API 조회
-- `Project` 기준 `Component`, `EdgeStack` 수집
 - 서비스 맵 렌더링
 - 선택 노드 상태 관리
 - inventory 탭 표 렌더링
 - selected component 패널 렌더링
+
+비책임:
+
+- catalog API 조회
+- Backstage entity context 접근
 
 ### `src/components/ProjectServiceMap.model.ts`
 
@@ -67,13 +74,13 @@ import { ProjectServiceMap } from '@internal/plugin-service-map';
 
 ## 데이터 흐름
 
-1. `ProjectServiceMap`이 현재 entity context에서 `Project`를 읽는다.
-2. catalog에서 다음 엔티티를 조회한다.
+1. app-level container가 현재 entity context에서 `Project`를 읽는다.
+2. app-level container가 catalog에서 다음 엔티티를 조회한다.
    - `Component`
    - `EdgeStack`
 3. `belongsToProject` 규칙으로 현재 프로젝트에 속한 엔티티만 선별한다.
 4. `buildProjectServiceMapModel`이 UI용 모델을 만든다.
-5. React Flow가 최종 노드/엣지를 렌더링한다.
+5. `ProjectServiceMap`이 React Flow로 최종 노드/엣지를 렌더링한다.
 
 ## UX 원칙
 
