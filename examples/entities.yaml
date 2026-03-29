@@ -7,6 +7,92 @@ metadata:
 spec:
   owner: guests
 ---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: public-alb
+  title: Public ALB
+spec:
+  type: load-balancer
+  owner: guests
+  system: examples
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: public-hosted-zone
+  title: Public Hosted Zone
+spec:
+  type: dns
+  owner: guests
+  system: examples
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: edge-waf
+  title: Edge WAF
+spec:
+  type: waf
+  owner: guests
+  system: examples
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: envoy-on-ecs
+  title: Envoy on ECS
+spec:
+  type: compute
+  owner: guests
+  system: examples
+---
+apiVersion: kabang.cloud/v1
+kind: EdgeStack
+metadata:
+  name: shared-public-web-entry
+  title: Shared Public Web Entry
+  description: Shared public ALB to Envoy on ECS edge stack for internal API traffic.
+spec:
+  owner: guests
+  team: guests
+  pattern: public-web-entry
+  shared: true
+  projects:
+    - guest-portal
+    - guest-ops-console
+  exposure:
+    ingress: public
+    upstream: private
+  network:
+    ingressSubnet: public
+    upstreamSubnet: private
+    region: ap-northeast-2
+    environment: production
+  routing:
+    mode: host-path
+    protocol: http
+    tlsTerminationAt: alb
+  attachments:
+    - role: dns
+      kind: route53
+      entityRef: resource:default/public-hosted-zone
+    - role: shield
+      kind: waf
+      entityRef: resource:default/edge-waf
+  hops:
+    - role: ingress
+      kind: alb
+      entityRef: resource:default/public-alb
+    - role: proxy
+      kind: envoy-on-ecs
+      entityRef: resource:default/envoy-on-ecs
+  targets:
+    - entityRef: component:default/guest-portal-api
+      trafficType: http
+    - entityRef: component:default/guest-ops-console-api
+      trafficType: http
+---
 # https://backstage.io/docs/features/software-catalog/descriptor-format#kind-component
 apiVersion: backstage.io/v1alpha1
 kind: Component

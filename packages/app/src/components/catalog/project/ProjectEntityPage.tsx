@@ -1,13 +1,7 @@
 import type { ReactNode } from 'react';
 import { Grid } from '@material-ui/core';
-import {
-  EntityAboutCard,
-  EntityHasComponentsCard,
-  EntityLayout,
-  EntityLinksCard,
-} from '@backstage/plugin-catalog';
-import { EntityOwnershipCard } from '@backstage/plugin-org';
-import { ProjectServiceMap } from './ProjectServiceMap';
+import { EntityAboutCard, EntityLayout } from '@backstage/plugin-catalog';
+import { ProjectServiceMap } from '@internal/plugin-service-map';
 
 type ProjectEntityPageProps = {
   entityWarningContent: ReactNode;
@@ -20,34 +14,19 @@ export function ProjectEntityPage({
     <EntityLayout>
       <EntityLayout.Route path="/" title="Overview">
         <Grid container spacing={3} alignItems="stretch">
+          {entityWarningContent}
+          <Grid item xs={12}>
+            <EntityAboutCard variant="gridItem" />
+          </Grid>
           <Grid item xs={12}>
             <ProjectServiceMap />
           </Grid>
-          {entityWarningContent}
-          <Grid item md={6}>
-            <EntityAboutCard variant="gridItem" />
-          </Grid>
-          <Grid item md={6} xs={12}>
-            <EntityOwnershipCard variant="gridItem" />
-          </Grid>
-          <Grid item md={6} xs={12}>
-            <EntityLinksCard />
-          </Grid>
-          <Grid item md={6} xs={12}>
-            <EntityHasComponentsCard
-              variant="gridItem"
-              title="Project Components"
-            />
-          </Grid>
         </Grid>
       </EntityLayout.Route>
-      <EntityLayout.Route path="/components" title="Components">
+      <EntityLayout.Route path="/components" title="Inventory">
         <Grid container spacing={3} alignItems="stretch">
           <Grid item xs={12}>
-            <EntityHasComponentsCard
-              variant="gridItem"
-              title="Project Components"
-            />
+            <ProjectServiceMap inventoryOnly />
           </Grid>
         </Grid>
       </EntityLayout.Route>

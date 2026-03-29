@@ -1,20 +1,16 @@
 import { useEffect, useState } from 'react';
-import {
-  Card,
-  CardContent,
-  Chip,
-  CircularProgress,
-  Divider,
-  makeStyles,
-  Typography,
-} from '@material-ui/core';
+import { Card, CardContent, Chip, CircularProgress, makeStyles, Typography } from '@material-ui/core';
+import { InfoCard, Table, type TableColumn } from '@backstage/core-components';
+import OpenInNewIcon from '@material-ui/icons/OpenInNew';
 import { useApi } from '@backstage/core-plugin-api';
 import {
   catalogApiRef,
-  EntityRefLink,
   useEntity,
 } from '@backstage/plugin-catalog-react';
-import type { Entity } from '@backstage/catalog-model';
+import {
+  parseEntityRef,
+  type Entity,
+} from '@backstage/catalog-model';
 import {
   Background,
   Controls,
@@ -24,40 +20,44 @@ import {
   type Node,
   type NodeMouseHandler,
   type NodeProps,
-  Panel,
   Position,
   ReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
+  belongsToProject,
   buildProjectServiceMapModel,
-  getProjectComponentFilter,
+  getProjectEntitiesForKindFilter,
   type ProjectServiceMapModel,
   type ServiceMapNode,
   type ServiceMapZone,
 } from './ProjectServiceMap.model';
 
 const useStyles = makeStyles(theme => ({
+  section: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: theme.spacing(3),
+  },
   wrapper: {
-    height: 760,
-    borderRadius: theme.shape.borderRadius,
-    border: `1px solid ${theme.palette.divider}`,
+    minHeight: 700,
+    borderRadius: 16,
     overflow: 'hidden',
     background:
       'radial-gradient(circle at top left, rgba(33, 150, 243, 0.08), transparent 32%), linear-gradient(180deg, #f8fbff 0%, #f4f7fb 100%)',
   },
   canvas: {
     width: '100%',
-    height: '100%',
+    height: 700,
   },
   loading: {
-    height: '100%',
+    height: 700,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
   },
   nodeCard: {
-    width: 240,
+    width: '100%',
     borderRadius: 18,
     border: '1px solid rgba(15, 23, 42, 0.08)',
     boxShadow: '0 18px 40px rgba(15, 23, 42, 0.12)',
@@ -74,6 +74,11 @@ const useStyles = makeStyles(theme => ({
   nodeCardPublic: {
     background: 'linear-gradient(180deg, #ffffff 0%, #f2f8ff 100%)',
     borderColor: 'rgba(30, 136, 229, 0.32)',
+  },
+  nodeCardDns: {
+    background: 'linear-gradient(180deg, #ffffff 0%, #eef6ff 100%)',
+    borderColor: 'rgba(37, 99, 235, 0.4)',
+    boxShadow: '0 14px 28px rgba(37, 99, 235, 0.1)',
   },
   nodeCardPrivate: {
     background: 'linear-gradient(180deg, #ffffff 0%, #f5f7fa 100%)',
@@ -119,8 +124,8 @@ const useStyles = makeStyles(theme => ({
     width: '100%',
     height: '100%',
     borderRadius: 28,
-    border: '1px solid rgba(148, 163, 184, 0.28)',
-    background: 'rgba(255, 255, 255, 0.62)',
+    border: '1px solid rgba(148, 163, 184, 0.34)',
+    background: 'rgba(255, 255, 255, 0.82)',
     backdropFilter: 'blur(3px)',
     padding: theme.spacing(2.5),
     boxSizing: 'border-box',
@@ -130,6 +135,8 @@ const useStyles = makeStyles(theme => ({
     alignItems: 'baseline',
     justifyContent: 'space-between',
     marginBottom: theme.spacing(1),
+    position: 'relative',
+    zIndex: 1,
   },
   zoneTitle: {
     fontSize: '0.82rem',
@@ -142,33 +149,53 @@ const useStyles = makeStyles(theme => ({
     fontSize: '0.75rem',
     color: 'rgba(15, 23, 42, 0.76)',
   },
-  legend: {
-    borderRadius: 16,
-    border: '1px solid rgba(15, 23, 42, 0.08)',
-    background: 'rgba(255, 255, 255, 0.98)',
-    boxShadow: '0 12px 28px rgba(15, 23, 42, 0.12)',
-    padding: theme.spacing(1.5),
-    minWidth: 220,
+  zoneDnsColumn: {
+    position: 'absolute',
+    top: 60,
+    left: 16,
+    width: 164,
+    bottom: 16,
+    border: '1px dashed rgba(37, 99, 235, 0.28)',
+    background:
+      'linear-gradient(180deg, rgba(37, 99, 235, 0.08) 0%, rgba(37, 99, 235, 0.03) 100%)',
+    borderRadius: 18,
+    pointerEvents: 'none',
   },
-  legendTitle: {
-    color: '#111827',
+  zoneDnsLabel: {
+    position: 'absolute',
+    top: 20,
+    left: 24,
+    color: '#2563eb',
+    fontSize: '0.7rem',
     fontWeight: 800,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
   },
-  legendRow: {
+  zoneWorkloadLabel: {
+    position: 'absolute',
+    top: 20,
+    left: 204,
+    color: '#0f172a',
+    fontSize: '0.7rem',
+    fontWeight: 800,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+  },
+  selectedLane: {
+    borderRadius: 16,
+    border: `1px solid ${theme.palette.divider}`,
+    background: theme.palette.background.paper,
+    boxShadow:
+      theme.palette.type === 'dark'
+        ? '0 12px 28px rgba(0, 0, 0, 0.32)'
+        : '0 12px 28px rgba(15, 23, 42, 0.08)',
+    padding: theme.spacing(2),
+  },
+  selectedHeader: {
     display: 'flex',
-    alignItems: 'center',
-    gap: theme.spacing(1),
-    marginTop: theme.spacing(1),
-  },
-  legendText: {
-    color: '#1f2937',
-    fontWeight: 600,
-  },
-  legendSwatch: {
-    width: 12,
-    height: 12,
-    borderRadius: 999,
-    flexShrink: 0,
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: theme.spacing(2),
   },
   empty: {
     padding: theme.spacing(6),
@@ -178,20 +205,37 @@ const useStyles = makeStyles(theme => ({
     padding: theme.spacing(4),
   },
   inspector: {
-    borderRadius: 18,
-    border: '1px solid rgba(15, 23, 42, 0.08)',
-    background: 'rgba(255, 255, 255, 0.99)',
-    boxShadow: '0 12px 28px rgba(15, 23, 42, 0.12)',
-    padding: theme.spacing(2),
-    width: 280,
+    height: '100%',
+  },
+  selectedGrid: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: theme.spacing(2.5),
+  },
+  selectedPrimary: {
+    minWidth: 0,
+  },
+  selectedSection: {
+    marginTop: theme.spacing(2),
+  },
+  selectedSectionTitle: {
+    color: theme.palette.text.primary,
+    fontWeight: 800,
+    fontSize: '0.85rem',
+    marginBottom: theme.spacing(1),
+  },
+  selectedSectionHint: {
+    color: theme.palette.text.secondary,
+    fontSize: '0.8rem',
+    marginBottom: theme.spacing(1.5),
   },
   inspectorTitle: {
     fontWeight: 800,
     marginBottom: theme.spacing(0.5),
-    color: '#111827',
+    color: theme.palette.text.primary,
   },
   inspectorSubtitle: {
-    color: '#4b5563',
+    color: theme.palette.text.secondary,
     marginBottom: theme.spacing(1.5),
   },
   inspectorRow: {
@@ -201,7 +245,7 @@ const useStyles = makeStyles(theme => ({
     marginTop: theme.spacing(1),
   },
   inspectorLabel: {
-    color: '#6b7280',
+    color: theme.palette.text.secondary,
     fontSize: '0.78rem',
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
@@ -210,11 +254,91 @@ const useStyles = makeStyles(theme => ({
   inspectorValue: {
     fontWeight: 700,
     textAlign: 'right',
-    color: '#111827',
+    color: theme.palette.text.primary,
   },
   inspectorHint: {
-    color: '#374151',
+    color: theme.palette.text.secondary,
     fontWeight: 500,
+  },
+  entityLink: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: theme.spacing(0.5),
+    color: theme.palette.primary.main,
+    fontWeight: 700,
+    textDecoration: 'none',
+  },
+  entityLinkIcon: {
+    fontSize: '0.95rem',
+  },
+  rowButton: {
+    cursor: 'pointer',
+  },
+  rowSelected: {
+    background: 'rgba(37, 99, 235, 0.08)',
+  },
+  cellTitle: {
+    fontWeight: 700,
+    color: theme.palette.text.primary,
+  },
+  cellSubtle: {
+    color: theme.palette.text.secondary,
+  },
+  chipCompact: {
+    fontSize: '0.68rem',
+    fontWeight: 700,
+  },
+  dnsChip: {
+    position: 'absolute',
+    left: 28,
+    top: 54,
+    zIndex: 2,
+    background: '#dbeafe',
+    color: '#1d4ed8',
+    fontWeight: 800,
+  },
+  workloadChip: {
+    position: 'absolute',
+    left: 208,
+    top: 54,
+    zIndex: 2,
+    background: '#e5e7eb',
+    color: '#111827',
+    fontWeight: 800,
+  },
+  resourceDiagram: {
+    marginTop: theme.spacing(2),
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: theme.spacing(1),
+  },
+  resourceNode: {
+    borderRadius: 12,
+    border: `1px solid ${theme.palette.divider}`,
+    background:
+      theme.palette.type === 'dark'
+        ? 'rgba(255, 255, 255, 0.04)'
+        : '#ffffff',
+    padding: theme.spacing(1.25),
+    minWidth: 170,
+    maxWidth: 220,
+  },
+  resourceNodeTitle: {
+    color: theme.palette.text.primary,
+    fontWeight: 700,
+    fontSize: '0.85rem',
+  },
+  resourceNodeSubtitle: {
+    color: theme.palette.text.secondary,
+    fontSize: '0.78rem',
+    marginTop: theme.spacing(0.5),
+  },
+  resourceArrow: {
+    color: theme.palette.primary.main,
+    fontWeight: 800,
+    fontSize: '1rem',
+    padding: theme.spacing(0, 0.5),
   },
 }));
 
@@ -254,11 +378,15 @@ function edgeColor(tone: Edge['data'] extends { tone: infer T } ? T : unknown) {
 
 function getNodeCardClassName(
   classes: ReturnType<typeof useStyles>,
-  tone: ServiceMapNode['tone'],
+  node: ServiceMapNode,
   selected: boolean,
 ): string {
   const toneClassName = (() => {
-    switch (tone) {
+    if (node.lane === 'dns') {
+      return classes.nodeCardDns;
+    }
+
+    switch (node.tone) {
       case 'entry':
         return classes.nodeCardIngress;
       case 'public':
@@ -278,7 +406,7 @@ function ServiceNodeCard({ data, selected }: NodeProps<Node<FlowNodeData>>) {
   const classes = useStyles();
   const { node } = data;
   const accent = toneColor(node.tone);
-  const cardClassName = getNodeCardClassName(classes, node.tone, selected);
+  const cardClassName = getNodeCardClassName(classes, node, selected);
 
   return (
     <>
@@ -341,6 +469,21 @@ function ZoneNode({ data }: NodeProps<Node<ZoneNodeData>>) {
 
   return (
     <div className={classes.zoneCard}>
+      {data.zone.id === 'public' && (
+        <>
+          <div className={classes.zoneDnsColumn} />
+          <Typography className={classes.zoneDnsLabel}>DNS</Typography>
+          <Typography className={classes.zoneWorkloadLabel}>
+            Edge Stack & Workloads
+          </Typography>
+          <Chip label="DNS Zone" size="small" className={classes.dnsChip} />
+          <Chip
+            label="Service Path"
+            size="small"
+            className={classes.workloadChip}
+          />
+        </>
+      )}
       <div className={classes.zoneHeader}>
         <Typography className={classes.zoneTitle}>{data.zone.title}</Typography>
       </div>
@@ -348,6 +491,36 @@ function ZoneNode({ data }: NodeProps<Node<ZoneNodeData>>) {
         {data.zone.description}
       </Typography>
     </div>
+  );
+}
+
+function getEntityHref(entityRef: string): string {
+  const parsed = parseEntityRef(entityRef);
+
+  return `/catalog/${parsed.namespace ?? 'default'}/${parsed.kind.toLocaleLowerCase(
+    'en-US',
+  )}/${parsed.name}`;
+}
+
+function EntityLinkWithIcon({
+  entityRef,
+  label,
+}: {
+  entityRef: string;
+  label?: string;
+}) {
+  const classes = useStyles();
+
+  return (
+    <a
+      href={getEntityHref(entityRef)}
+      target="_blank"
+      rel="noreferrer"
+      className={classes.entityLink}
+    >
+      <span>{label ?? entityRef}</span>
+      <OpenInNewIcon className={classes.entityLinkIcon} />
+    </a>
   );
 }
 
@@ -364,13 +537,15 @@ function buildFlow(
     node => node.kind === 'component',
   );
   const nodeWidth = 240;
+  const dnsNodeWidth = 156;
   const nodeHeight = 96;
   const nodeGapX = 48;
-  const nodeGapY = 28;
-  const minZoneWidth = 460;
+  const nodeGapY = 44;
+  const minPublicZoneWidth = 860;
+  const minPrivateZoneWidth = 520;
   const minZoneHeight = 280;
-  const zoneGap = 72;
-  const zoneStartX = 380;
+  const zoneGap = 88;
+  const zoneStartX = 120;
   const zoneStartY = 72;
   const zoneHeaderHeight = 72;
   const zonePaddingX = 32;
@@ -378,7 +553,6 @@ function buildFlow(
   const zonePaddingBottom = 32;
   const ingressX = 56;
   const defaultIngressY = 196;
-
   const outgoingBySource = new Map<string, string[]>();
 
   for (const edge of model.edges) {
@@ -402,7 +576,7 @@ function buildFlow(
   const nodeById = new Map(model.nodes.map(node => [node.id, node]));
 
   for (const node of componentNodes) {
-    localColumnByNode.set(node.id, 0);
+    localColumnByNode.set(node.id, node.lane === 'dns' ? 0 : 1);
   }
 
   for (let iteration = 0; iteration < componentNodes.length; iteration += 1) {
@@ -416,10 +590,12 @@ function buildFlow(
         continue;
       }
 
-      const nextColumn =
-        sourceNode.kind === 'component' && sourceNode.zone === targetNode.zone
-          ? (localColumnByNode.get(sourceNode.id) ?? 0) + 1
-          : 0;
+      let nextColumn = targetNode.lane === 'dns' ? 0 : 1;
+      if (sourceNode.kind === 'component' && sourceNode.zone === targetNode.zone) {
+        nextColumn =
+          (localColumnByNode.get(sourceNode.id) ?? (sourceNode.lane === 'dns' ? 0 : 1)) +
+          1;
+      }
 
       if ((localColumnByNode.get(targetNode.id) ?? 0) < nextColumn) {
         localColumnByNode.set(targetNode.id, nextColumn);
@@ -535,10 +711,30 @@ function buildFlow(
       Math.max(...zoneNodes.map(node => positionedColumns.get(node.id) ?? 0), 0) + 1;
     const maxRow =
       Math.max(...zoneNodes.map(node => positionedRows.get(node.id) ?? 0), 0) + 1;
-    const zoneWidth = Math.max(
-      minZoneWidth,
-      zonePaddingX * 2 + maxColumn * nodeWidth + Math.max(0, maxColumn - 1) * nodeGapX,
-    );
+    const serviceColumns = Math.max(
+      ...zoneNodes
+        .filter(node => node.lane !== 'dns')
+        .map(node => (positionedColumns.get(node.id) ?? 1) - 1),
+      0,
+    ) + 1;
+    const zoneWidth =
+      zoneId === 'public'
+        ? Math.max(
+            minPublicZoneWidth,
+            zonePaddingX +
+              164 +
+              28 +
+              zonePaddingX +
+              serviceColumns * nodeWidth +
+              Math.max(0, serviceColumns - 1) * nodeGapX +
+              40,
+          )
+        : Math.max(
+            minPrivateZoneWidth,
+            zonePaddingX * 2 +
+              serviceColumns * nodeWidth +
+              Math.max(0, serviceColumns - 1) * nodeGapX,
+          );
     const zoneHeight = Math.max(
       minZoneHeight,
       zoneHeaderHeight +
@@ -559,7 +755,7 @@ function buildFlow(
     currentZoneX += zoneWidth + zoneGap;
   }
 
-  const zoneContentY = zoneStartY + zoneHeaderHeight + zonePaddingTop;
+  const zoneContentYBase = zoneStartY + zoneHeaderHeight + zonePaddingTop;
   const flowNodes: Node[] = zoneOrder.map(zoneId => {
     const zone = model.zones.find(candidate => candidate.id === zoneId)!;
     const zoneMetrics = zoneLayoutMetrics.get(zoneId)!;
@@ -592,7 +788,7 @@ function buildFlow(
       ? zoneLayoutMetrics.get(publicZoneId)
       : undefined;
     const ingressY = publicZoneMetrics
-      ? zoneStartY + zoneHeaderHeight + zonePaddingTop
+      ? zoneContentYBase
       : defaultIngressY;
 
     flowNodes.push({
@@ -613,6 +809,7 @@ function buildFlow(
   for (const zoneId of zoneOrder) {
     const zoneNodes = nodesByZone.get(zoneId) ?? [];
     const zoneMetrics = zoneLayoutMetrics.get(zoneId)!;
+    const zoneContentY = zoneContentYBase;
 
     zoneNodes.forEach(node => {
       const column = positionedColumns.get(node.id) ?? 0;
@@ -622,7 +819,12 @@ function buildFlow(
         id: node.id,
         type: 'service',
         position: {
-          x: zoneMetrics.x + zonePaddingX + column * (nodeWidth + nodeGapX),
+          x:
+            node.lane === 'dns'
+              ? zoneMetrics.x + 22
+              : zoneMetrics.x +
+                (zoneId === 'public' ? 236 : zonePaddingX) +
+                ((zoneId === 'public' ? column - 1 : column) * (nodeWidth + nodeGapX)),
           y: zoneContentY + row * (nodeHeight + nodeGapY),
         },
         draggable: false,
@@ -630,7 +832,7 @@ function buildFlow(
         selected: node.id === selectedNodeId,
         data: { node },
         style: {
-          width: nodeWidth,
+          width: node.lane === 'dns' ? dnsNodeWidth : nodeWidth,
         },
         zIndex: 2,
       });
@@ -658,7 +860,7 @@ function buildFlow(
         strokeWidth: edge.tone === 'dependency' ? 2 : 2.5,
       },
       labelStyle: {
-        fill: '#0f172a',
+        fill: '#1f2937',
         fontSize: 11,
         fontWeight: 700,
       },
@@ -705,7 +907,33 @@ function getSelectedNodeSummary(
   };
 }
 
-export function ProjectServiceMap() {
+function getVisibleNodeRows(model: ProjectServiceMapModel) {
+  return model.nodes
+    .filter(node => node.kind === 'component')
+    .map(node => {
+      const incomingCount = model.edges.filter(edge => edge.target === node.id).length;
+      const outgoingCount = model.edges.filter(edge => edge.source === node.id).length;
+      const zone = model.zones.find(candidate => candidate.id === node.zone)?.title ?? node.zone;
+
+      return {
+        id: node.id,
+        title: node.title,
+        subtitle: node.subtitle,
+        zone,
+        exposure: node.exposure ?? 'private',
+        incomingCount,
+        outgoingCount,
+        entityRef: node.entityRef,
+        componentKind: node.componentKind,
+      };
+    });
+}
+
+export function ProjectServiceMap({
+  inventoryOnly = false,
+}: {
+  inventoryOnly?: boolean;
+}) {
   const classes = useStyles();
   const { entity } = useEntity();
   const catalogApi = useApi(catalogApiRef);
@@ -722,20 +950,31 @@ export function ProjectServiceMap() {
       setError(undefined);
 
       try {
-        const response = await catalogApi.getEntities({
-          filter: getProjectComponentFilter(entity as Entity),
-        });
+        const [componentResponse, edgeStackResponse] = await Promise.all([
+          catalogApi.getEntities({
+            filter: getProjectEntitiesForKindFilter(entity as Entity, 'Component'),
+          }),
+          catalogApi.getEntities({
+            filter: { kind: 'EdgeStack' },
+          }),
+        ]);
 
         if (cancelled) {
           return;
         }
 
-        const nextModel = buildProjectServiceMapModel(entity as Entity, response.items);
+        const nextModel = buildProjectServiceMapModel(entity as Entity, [
+          ...edgeStackResponse.items.filter(candidate =>
+            belongsToProject(candidate, entity as Entity),
+          ),
+          ...componentResponse.items,
+        ]);
         setModel(nextModel);
-        setSelectedNodeId(
-          nextModel.nodes.find(node => node.kind === 'component')?.id ??
-            nextModel.nodes[0]?.id,
-        );
+        const firstNode =
+          nextModel.nodes.find(node => node.catalogKind === 'EdgeStack') ??
+          nextModel.nodes.find(node => node.kind === 'component') ??
+          nextModel.nodes[0];
+        setSelectedNodeId(firstNode?.id);
       } catch (loadError) {
         if (cancelled) {
           return;
@@ -787,8 +1026,8 @@ export function ProjectServiceMap() {
         <CardContent className={classes.empty}>
           <Typography variant="h6">No mapped components found</Typography>
           <Typography color="textSecondary">
-            Add `kabang.cloud/project` annotations to project components to
-            render a traffic map.
+            Add `kabang.cloud/project` annotations to project components and
+            edge stacks to render a traffic map.
           </Typography>
         </CardContent>
       </Card>
@@ -797,70 +1036,127 @@ export function ProjectServiceMap() {
 
   const flow = buildFlow(model, selectedNodeId);
   const selectedSummary = getSelectedNodeSummary(model, selectedNodeId);
+  const visibleNodeRows = getVisibleNodeRows(model);
+  const inventoryColumns: TableColumn<(typeof visibleNodeRows)[number]>[] = [
+    {
+      title: 'Name',
+      render: row => (
+        <>
+          <Typography variant="body2" className={classes.cellTitle}>
+            {row.title}
+          </Typography>
+          {row.subtitle && (
+            <Typography variant="body2" className={classes.cellSubtle}>
+              {row.subtitle}
+            </Typography>
+          )}
+        </>
+      ),
+    },
+    {
+      title: 'Zone',
+      render: row => (
+        <Typography variant="body2" className={classes.cellSubtle}>
+          {row.zone}
+        </Typography>
+      ),
+    },
+    {
+      title: 'Exposure',
+      render: row => (
+        <Chip
+          label={row.exposure}
+          size="small"
+          className={classes.chipCompact}
+        />
+      ),
+    },
+    {
+      title: 'Traffic',
+      render: row => (
+        <Typography variant="body2" className={classes.cellSubtle}>
+          {row.incomingCount} in / {row.outgoingCount} out
+        </Typography>
+      ),
+    },
+    {
+      title: 'Entity',
+      render: row =>
+        row.componentKind === 'component' && row.entityRef ? (
+          <EntityLinkWithIcon entityRef={row.entityRef} label={row.title} />
+        ) : (
+          <Typography variant="body2" className={classes.cellSubtle}>
+            {row.entityRef ?? row.id}
+          </Typography>
+        ),
+    },
+  ];
   const handleNodeClick: NodeMouseHandler = (_event, node) => {
     setSelectedNodeId(node.id);
   };
+  const ownedResources = selectedSummary?.node.ownedResources ?? [];
+
+  if (inventoryOnly) {
+    return (
+      <InfoCard
+        title="Service Map Inventory"
+        subheader="Nodes currently represented in the map, including shared edge stacks and project components."
+      >
+        <Table
+          columns={inventoryColumns}
+          data={visibleNodeRows}
+          options={{
+            paging: false,
+            search: false,
+            toolbar: false,
+            padding: 'dense',
+          }}
+          onRowClick={(_event, row) => setSelectedNodeId(row?.id)}
+        />
+      </InfoCard>
+    );
+  }
 
   return (
-    <div className={classes.wrapper}>
-      <div className={classes.canvas}>
-        <ReactFlow
-          nodes={flow.nodes}
-          edges={flow.edges}
-          fitView
-          fitViewOptions={{ padding: 0.12 }}
-          nodesDraggable={false}
-          nodesConnectable={false}
-          elementsSelectable
-          onNodeClick={handleNodeClick}
-          onPaneClick={() => setSelectedNodeId(undefined)}
-          zoomOnDoubleClick={false}
-          nodeTypes={{
-            service: ServiceNodeCard,
-            zone: ZoneNode,
-          }}
-        >
-          <Background gap={28} size={1.2} color="rgba(148, 163, 184, 0.22)" />
-          <Controls showInteractive={false} />
-          <Panel position="top-right">
-            <Card elevation={0} className={classes.legend}>
-              <Typography variant="subtitle2" className={classes.legendTitle}>
-                Traffic Legend
-              </Typography>
-              <Divider style={{ background: 'rgba(15, 23, 42, 0.14)' }} />
-              <div className={classes.legendRow}>
-                <span
-                  className={classes.legendSwatch}
-                  style={{ background: '#0284c7' }}
-                />
-                <Typography variant="body2" className={classes.legendText}>
-                  Public ingress
-                </Typography>
-              </div>
-              <div className={classes.legendRow}>
-                <span
-                  className={classes.legendSwatch}
-                  style={{ background: '#2563eb' }}
-                />
-                <Typography variant="body2" className={classes.legendText}>
-                  Service-to-service traffic
-                </Typography>
-              </div>
-              <div className={classes.legendRow}>
-                <span
-                  className={classes.legendSwatch}
-                  style={{ background: '#ea580c' }}
-                />
-                <Typography variant="body2" className={classes.legendText}>
-                  Dependency outside the project
-                </Typography>
-              </div>
-            </Card>
-          </Panel>
-          <Panel position="bottom-right">
-            <Card elevation={0} className={classes.inspector}>
+    <div className={classes.section}>
+      <InfoCard
+        title="Service Map"
+        subheader="Traffic-oriented topology for the current project, including shared edge stacks, DNS entry points, and downstream components."
+      >
+        <div className={classes.wrapper}>
+          <div className={classes.canvas}>
+            <ReactFlow
+              nodes={flow.nodes}
+              edges={flow.edges}
+              fitView
+              fitViewOptions={{ padding: 0.04 }}
+              nodesDraggable={false}
+              nodesConnectable={false}
+              elementsSelectable
+              onNodeClick={handleNodeClick}
+              onPaneClick={() => setSelectedNodeId(undefined)}
+              zoomOnDoubleClick={false}
+              nodeTypes={{
+                service: ServiceNodeCard,
+                zone: ZoneNode,
+              }}
+            >
+              <Background gap={28} size={1.2} color="rgba(148, 163, 184, 0.22)" />
+              <Controls showInteractive={false} />
+            </ReactFlow>
+          </div>
+        </div>
+      </InfoCard>
+
+      <InfoCard
+        title="Selected Component"
+        subheader="Details for the currently selected node in the service map. Select a node to inspect its topology metadata and, when applicable, its stack chain."
+      >
+        <div className={classes.selectedGrid}>
+          <div className={classes.selectedPrimary}>
+            <div className={classes.inspector}>
               {selectedSummary ? (
-                <CardContent>
+                <>
                   <Typography variant="subtitle1" className={classes.inspectorTitle}>
                     {selectedSummary.node.title}
                   </Typography>
@@ -879,19 +1175,21 @@ export function ProjectServiceMap() {
                     </Typography>
                   </div>
                   <div className={classes.inspectorRow}>
-                    <Typography className={classes.inspectorLabel}>
-                      Incoming
-                    </Typography>
+                    <Typography className={classes.inspectorLabel}>Incoming</Typography>
                     <Typography className={classes.inspectorValue}>
                       {selectedSummary.incomingCount}
                     </Typography>
                   </div>
                   <div className={classes.inspectorRow}>
-                    <Typography className={classes.inspectorLabel}>
-                      Outgoing
-                    </Typography>
+                    <Typography className={classes.inspectorLabel}>Outgoing</Typography>
                     <Typography className={classes.inspectorValue}>
                       {selectedSummary.outgoingCount}
+                    </Typography>
+                  </div>
+                  <div className={classes.inspectorRow}>
+                    <Typography className={classes.inspectorLabel}>Exposure</Typography>
+                    <Typography className={classes.inspectorValue}>
+                      {selectedSummary.node.exposure}
                     </Typography>
                   </div>
                   <div className={classes.inspectorRow}>
@@ -899,28 +1197,77 @@ export function ProjectServiceMap() {
                     <Typography className={classes.inspectorValue}>
                       {selectedSummary.node.componentKind === 'component' &&
                       selectedSummary.node.entityRef ? (
-                        <EntityRefLink entityRef={selectedSummary.node.entityRef} />
+                        <EntityLinkWithIcon
+                          entityRef={selectedSummary.node.entityRef}
+                          label={selectedSummary.node.title}
+                        />
                       ) : (
                         selectedSummary.node.entityRef ?? selectedSummary.node.id
                       )}
                     </Typography>
                   </div>
-                </CardContent>
+                </>
               ) : (
-                <CardContent>
+                <>
                   <Typography variant="subtitle1" className={classes.inspectorTitle}>
                     Select a component
                   </Typography>
                   <Typography variant="body2" className={classes.inspectorHint}>
-                    Click a node to inspect its zone, flow count, and linked
-                    entity.
+                    Click a node in the service map to inspect its traffic and
+                    catalog information here.
                   </Typography>
-                </CardContent>
+                </>
               )}
-            </Card>
-          </Panel>
-        </ReactFlow>
-      </div>
+            </div>
+          </div>
+
+          {ownedResources.length > 0 ? (
+            <div className={classes.selectedSection}>
+              <Typography className={classes.selectedSectionTitle}>
+                Owned Resources
+              </Typography>
+              <Typography className={classes.selectedSectionHint}>
+                Ordered owned resources shown in the same left-to-right
+                topology language as the service map.
+              </Typography>
+              <div className={classes.resourceDiagram}>
+                {ownedResources.flatMap((resource, index) => [
+                  <div
+                    key={`${resource.id}:diagram`}
+                    className={classes.resourceNode}
+                  >
+                    {resource.entityRef ? (
+                      <EntityLinkWithIcon
+                        entityRef={resource.entityRef}
+                        label={resource.title}
+                      />
+                    ) : (
+                      <Typography className={classes.resourceNodeTitle}>
+                        {resource.title}
+                      </Typography>
+                    )}
+                    <Typography className={classes.resourceNodeSubtitle}>
+                      {resource.subtitle}
+                    </Typography>
+                  </div>,
+                  index < ownedResources.length - 1 ? (
+                    <span
+                      key={`${resource.id}:arrow`}
+                      className={classes.resourceArrow}
+                    >
+                      →
+                    </span>
+                  ) : null,
+                ])}
+              </div>
+            </div>
+          ) : (
+            <Typography variant="body2" className={classes.inspectorHint}>
+              No owned resources are mapped for the current selection.
+            </Typography>
+          )}
+        </div>
+      </InfoCard>
     </div>
   );
 }
