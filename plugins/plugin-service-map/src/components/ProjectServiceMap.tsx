@@ -149,37 +149,28 @@ const useStyles = makeStyles(theme => ({
     fontSize: '0.75rem',
     color: 'rgba(15, 23, 42, 0.76)',
   },
-  zoneDnsColumn: {
-    position: 'absolute',
-    top: 60,
-    left: 16,
-    width: 164,
-    bottom: 16,
-    border: '1px dashed rgba(37, 99, 235, 0.28)',
+  zoneGroupCard: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 32,
+    border: '1px dashed rgba(37, 99, 235, 0.3)',
     background:
-      'linear-gradient(180deg, rgba(37, 99, 235, 0.08) 0%, rgba(37, 99, 235, 0.03) 100%)',
-    borderRadius: 18,
-    pointerEvents: 'none',
+      'linear-gradient(180deg, rgba(219, 234, 254, 0.44) 0%, rgba(239, 246, 255, 0.72) 100%)',
+    padding: theme.spacing(2.5, 3),
+    boxSizing: 'border-box',
   },
-  zoneDnsLabel: {
-    position: 'absolute',
-    top: 20,
-    left: 24,
-    color: '#2563eb',
-    fontSize: '0.7rem',
+  zoneGroupTitle: {
+    fontSize: '0.84rem',
     fontWeight: 800,
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
+    color: '#1d4ed8',
+    marginBottom: theme.spacing(0.75),
   },
-  zoneWorkloadLabel: {
-    position: 'absolute',
-    top: 20,
-    left: 204,
-    color: '#0f172a',
-    fontSize: '0.7rem',
-    fontWeight: 800,
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
+  zoneGroupDescription: {
+    fontSize: '0.78rem',
+    color: 'rgba(30, 64, 175, 0.82)',
+    maxWidth: 420,
   },
   selectedLane: {
     borderRadius: 16,
@@ -288,24 +279,6 @@ const useStyles = makeStyles(theme => ({
     fontSize: '0.68rem',
     fontWeight: 700,
   },
-  dnsChip: {
-    position: 'absolute',
-    left: 28,
-    top: 54,
-    zIndex: 2,
-    background: '#dbeafe',
-    color: '#1d4ed8',
-    fontWeight: 800,
-  },
-  workloadChip: {
-    position: 'absolute',
-    left: 208,
-    top: 54,
-    zIndex: 2,
-    background: '#e5e7eb',
-    color: '#111827',
-    fontWeight: 800,
-  },
   resourceDiagram: {
     marginTop: theme.spacing(2),
     display: 'flex',
@@ -349,6 +322,21 @@ type FlowNodeData = {
 type ZoneNodeData = {
   zone: ServiceMapZone;
 };
+
+type ZoneGroupNodeData = {
+  title: string;
+  description: string;
+};
+
+function hiddenHandleStyle(accent: string) {
+  return {
+    background: accent,
+    width: 10,
+    height: 10,
+    opacity: 0,
+    pointerEvents: 'none' as const,
+  };
+}
 
 function toneColor(tone: ServiceMapNode['tone']): string {
   switch (tone) {
@@ -411,11 +399,20 @@ function ServiceNodeCard({ data, selected }: NodeProps<Node<FlowNodeData>>) {
   return (
     <>
       {node.kind !== 'ingress' && (
-        <Handle
-          type="target"
-          position={Position.Left}
-          style={{ background: accent, width: 10, height: 10 }}
-        />
+        <>
+          <Handle
+            id="west"
+            type="target"
+            position={Position.Left}
+            style={{ background: accent, width: 10, height: 10 }}
+          />
+          <Handle
+            id="north"
+            type="target"
+            position={Position.Top}
+            style={hiddenHandleStyle(accent)}
+          />
+        </>
       )}
       <Card
         className={`${classes.nodeCard} ${cardClassName}`}
@@ -456,9 +453,16 @@ function ServiceNodeCard({ data, selected }: NodeProps<Node<FlowNodeData>>) {
         </CardContent>
       </Card>
       <Handle
+        id="east"
         type="source"
         position={Position.Right}
         style={{ background: accent, width: 10, height: 10 }}
+      />
+      <Handle
+        id="south"
+        type="source"
+        position={Position.Bottom}
+        style={hiddenHandleStyle(accent)}
       />
     </>
   );
@@ -469,21 +473,6 @@ function ZoneNode({ data }: NodeProps<Node<ZoneNodeData>>) {
 
   return (
     <div className={classes.zoneCard}>
-      {data.zone.id === 'public' && (
-        <>
-          <div className={classes.zoneDnsColumn} />
-          <Typography className={classes.zoneDnsLabel}>DNS</Typography>
-          <Typography className={classes.zoneWorkloadLabel}>
-            Edge Stack & Workloads
-          </Typography>
-          <Chip label="DNS Zone" size="small" className={classes.dnsChip} />
-          <Chip
-            label="Service Path"
-            size="small"
-            className={classes.workloadChip}
-          />
-        </>
-      )}
       <div className={classes.zoneHeader}>
         <Typography className={classes.zoneTitle}>{data.zone.title}</Typography>
       </div>
@@ -492,6 +481,47 @@ function ZoneNode({ data }: NodeProps<Node<ZoneNodeData>>) {
       </Typography>
     </div>
   );
+}
+
+function ZoneGroupNode({ data }: NodeProps<Node<ZoneGroupNodeData>>) {
+  const classes = useStyles();
+
+  return (
+    <div className={classes.zoneGroupCard}>
+      <Typography className={classes.zoneGroupTitle}>{data.title}</Typography>
+      <Typography className={classes.zoneGroupDescription}>
+        {data.description}
+      </Typography>
+    </div>
+  );
+}
+
+function resolveEdgeHandles(
+  edge: {
+    source: string;
+    target: string;
+  },
+  nodeById: Map<string, ServiceMapNode>,
+) {
+  const sourceNode = nodeById.get(edge.source);
+  const targetNode = nodeById.get(edge.target);
+
+  if (
+    sourceNode?.kind === 'component' &&
+    targetNode?.kind === 'component' &&
+    targetNode.zone === 'intra' &&
+    ['app', 'k8s'].includes(sourceNode.zone)
+  ) {
+    return {
+      sourceHandle: 'south',
+      targetHandle: 'north',
+    };
+  }
+
+  return {
+    sourceHandle: 'east',
+    targetHandle: 'west',
+  };
 }
 
 function getEntityHref(entityRef: string): string {
@@ -524,7 +554,7 @@ function EntityLinkWithIcon({
   );
 }
 
-function buildFlow(
+export function buildFlow(
   model: ProjectServiceMapModel,
   selectedNodeId?: string,
 ): {
@@ -537,21 +567,27 @@ function buildFlow(
     node => node.kind === 'component',
   );
   const nodeWidth = 240;
-  const dnsNodeWidth = 156;
   const nodeHeight = 96;
   const nodeGapX = 48;
   const nodeGapY = 44;
-  const minPublicZoneWidth = 860;
-  const minPrivateZoneWidth = 520;
-  const minZoneHeight = 280;
-  const zoneGap = 88;
-  const zoneStartX = 120;
-  const zoneStartY = 72;
+  const minZoneWidth = 360;
+  const minZoneHeight = 248;
+  const zoneGap = 72;
+  const zoneStartX = 160;
+  const zoneStartY = 80;
   const zoneHeaderHeight = 72;
-  const zonePaddingX = 32;
-  const zonePaddingTop = 36;
-  const zonePaddingBottom = 32;
-  const ingressX = 56;
+  const zonePaddingLeft = 40;
+  const zonePaddingRight = 40;
+  const zonePaddingTop = 28;
+  const zonePaddingBottom = 36;
+  const privateGroupPaddingLeft = 36;
+  const privateGroupPaddingRight = 36;
+  const privateGroupPaddingTop = 72;
+  const privateGroupPaddingBottom = 32;
+  const privateGroupColumnGap = 40;
+  const privateGroupRowGap = 56;
+  const ingressGap = 64;
+  const ingressX = zoneStartX - nodeWidth - ingressGap;
   const defaultIngressY = 196;
   const outgoingBySource = new Map<string, string[]>();
 
@@ -576,7 +612,7 @@ function buildFlow(
   const nodeById = new Map(model.nodes.map(node => [node.id, node]));
 
   for (const node of componentNodes) {
-    localColumnByNode.set(node.id, node.lane === 'dns' ? 0 : 1);
+    localColumnByNode.set(node.id, 0);
   }
 
   for (let iteration = 0; iteration < componentNodes.length; iteration += 1) {
@@ -590,11 +626,9 @@ function buildFlow(
         continue;
       }
 
-      let nextColumn = targetNode.lane === 'dns' ? 0 : 1;
+      let nextColumn = 0;
       if (sourceNode.kind === 'component' && sourceNode.zone === targetNode.zone) {
-        nextColumn =
-          (localColumnByNode.get(sourceNode.id) ?? (sourceNode.lane === 'dns' ? 0 : 1)) +
-          1;
+        nextColumn = (localColumnByNode.get(sourceNode.id) ?? 0) + 1;
       }
 
       if ((localColumnByNode.get(targetNode.id) ?? 0) < nextColumn) {
@@ -668,10 +702,9 @@ function buildFlow(
       width: number;
       height: number;
       x: number;
+      y: number;
     }
   >();
-
-  let currentZoneX = zoneStartX;
   for (const zoneId of zoneOrder) {
     const zoneNodes = [...(nodesByZone.get(zoneId) ?? [])].sort((left, right) => {
       const leftColumn = localColumnByNode.get(left.id) ?? 0;
@@ -690,9 +723,12 @@ function buildFlow(
     });
 
     const occupiedRowsByColumn = new Map<number, Set<number>>();
+    const zoneColumnValues = zoneNodes.map(node => localColumnByNode.get(node.id) ?? 0);
+    const minColumn = zoneColumnValues.length > 0 ? Math.min(...zoneColumnValues) : 0;
+    const provisionalRows = new Map<string, number>();
 
     for (const node of zoneNodes) {
-      const column = localColumnByNode.get(node.id) ?? 0;
+      const column = (localColumnByNode.get(node.id) ?? 0) - minColumn;
       const preferredRow = preferredRowByNode.get(node.id) ?? 0;
       const occupiedRows = occupiedRowsByColumn.get(column) ?? new Set<number>();
       let row = preferredRow;
@@ -704,37 +740,28 @@ function buildFlow(
       occupiedRows.add(row);
       occupiedRowsByColumn.set(column, occupiedRows);
       positionedColumns.set(node.id, column);
-      positionedRows.set(node.id, row);
+      provisionalRows.set(node.id, row);
+    }
+
+    const minRow =
+      provisionalRows.size > 0 ? Math.min(...provisionalRows.values()) : 0;
+
+    for (const node of zoneNodes) {
+      const normalizedRow = (provisionalRows.get(node.id) ?? 0) - minRow;
+      positionedRows.set(node.id, normalizedRow);
     }
 
     const maxColumn =
       Math.max(...zoneNodes.map(node => positionedColumns.get(node.id) ?? 0), 0) + 1;
     const maxRow =
       Math.max(...zoneNodes.map(node => positionedRows.get(node.id) ?? 0), 0) + 1;
-    const serviceColumns = Math.max(
-      ...zoneNodes
-        .filter(node => node.lane !== 'dns')
-        .map(node => (positionedColumns.get(node.id) ?? 1) - 1),
-      0,
-    ) + 1;
-    const zoneWidth =
-      zoneId === 'public'
-        ? Math.max(
-            minPublicZoneWidth,
-            zonePaddingX +
-              164 +
-              28 +
-              zonePaddingX +
-              serviceColumns * nodeWidth +
-              Math.max(0, serviceColumns - 1) * nodeGapX +
-              40,
-          )
-        : Math.max(
-            minPrivateZoneWidth,
-            zonePaddingX * 2 +
-              serviceColumns * nodeWidth +
-              Math.max(0, serviceColumns - 1) * nodeGapX,
-          );
+    const zoneWidth = Math.max(
+      minZoneWidth,
+      zonePaddingLeft +
+        zonePaddingRight +
+        maxColumn * nodeWidth +
+        Math.max(0, maxColumn - 1) * nodeGapX,
+    );
     const zoneHeight = Math.max(
       minZoneHeight,
       zoneHeaderHeight +
@@ -749,36 +776,145 @@ function buildFlow(
       columns: maxColumn,
       width: zoneWidth,
       height: zoneHeight,
-      x: currentZoneX,
+      x: 0,
+      y: zoneStartY,
     });
-
-    currentZoneX += zoneWidth + zoneGap;
   }
 
-  const zoneContentYBase = zoneStartY + zoneHeaderHeight + zonePaddingTop;
-  const flowNodes: Node[] = zoneOrder.map(zoneId => {
-    const zone = model.zones.find(candidate => candidate.id === zoneId)!;
-    const zoneMetrics = zoneLayoutMetrics.get(zoneId)!;
+  const customPrivateZoneIds = zoneOrder.filter(
+    zoneId => !['public', 'private'].includes(zoneId),
+  );
+  const shouldGroupPrivateZones = customPrivateZoneIds.length > 1;
+  const flowNodes: Node[] = [];
 
-    return {
-      id: `zone:${zoneId}`,
-      type: 'zone',
-      position: {
-        x: zoneMetrics.x,
+  if (shouldGroupPrivateZones) {
+    const publicZoneMetrics = zoneLayoutMetrics.get('public');
+    const privateTopZoneIds = customPrivateZoneIds.filter(zoneId => zoneId !== 'intra');
+    const privateBottomZoneIds = customPrivateZoneIds.filter(zoneId => zoneId === 'intra');
+
+    let currentZoneX = zoneStartX;
+    if (publicZoneMetrics) {
+      zoneLayoutMetrics.set('public', {
+        ...publicZoneMetrics,
+        x: currentZoneX,
         y: zoneStartY,
+      });
+      currentZoneX += publicZoneMetrics.width + zoneGap;
+    }
+
+    const topRowWidth = privateTopZoneIds.reduce((total, zoneId, index) => {
+      const width = zoneLayoutMetrics.get(zoneId)?.width ?? minZoneWidth;
+      return total + width + (index > 0 ? privateGroupColumnGap : 0);
+    }, 0);
+    const topRowHeight = Math.max(
+      ...privateTopZoneIds.map(zoneId => zoneLayoutMetrics.get(zoneId)?.height ?? minZoneHeight),
+      0,
+    );
+    const bottomRowWidth = privateBottomZoneIds.reduce((total, zoneId, index) => {
+      const width = zoneLayoutMetrics.get(zoneId)?.width ?? minZoneWidth;
+      return total + width + (index > 0 ? privateGroupColumnGap : 0);
+    }, 0);
+    const bottomRowHeight = Math.max(
+      ...privateBottomZoneIds.map(zoneId => zoneLayoutMetrics.get(zoneId)?.height ?? minZoneHeight),
+      0,
+    );
+    const privateContentWidth = Math.max(topRowWidth, bottomRowWidth, minZoneWidth);
+    const privateGroupWidth =
+      privateGroupPaddingLeft + privateContentWidth + privateGroupPaddingRight;
+    const privateGroupHeight =
+      privateGroupPaddingTop +
+      topRowHeight +
+      (privateBottomZoneIds.length > 0 ? privateGroupRowGap + bottomRowHeight : 0) +
+      privateGroupPaddingBottom;
+    const privateGroupX = currentZoneX;
+    const privateGroupY = zoneStartY;
+    const topRowStartX = privateGroupX + privateGroupPaddingLeft;
+    const topRowY = privateGroupY + privateGroupPaddingTop;
+
+    let cursorX = topRowStartX;
+    for (const zoneId of privateTopZoneIds) {
+      const metrics = zoneLayoutMetrics.get(zoneId)!;
+      zoneLayoutMetrics.set(zoneId, {
+        ...metrics,
+        x: cursorX,
+        y: topRowY,
+      });
+      cursorX += metrics.width + privateGroupColumnGap;
+    }
+
+    const bottomRowY = topRowY + topRowHeight + privateGroupRowGap;
+    for (const zoneId of privateBottomZoneIds) {
+      const metrics = zoneLayoutMetrics.get(zoneId)!;
+      zoneLayoutMetrics.set(zoneId, {
+        ...metrics,
+        x:
+          privateGroupX +
+          privateGroupPaddingLeft +
+          Math.max(0, (privateContentWidth - metrics.width) / 2),
+        y: bottomRowY,
+      });
+    }
+
+    flowNodes.push({
+      id: 'zone-group:private',
+      type: 'zoneGroup',
+      position: {
+        x: privateGroupX,
+        y: privateGroupY,
       },
       draggable: false,
       selectable: false,
       style: {
-        width: zoneMetrics.width,
-        height: zoneMetrics.height,
+        width: privateGroupWidth,
+        height: privateGroupHeight,
         border: 'none',
         background: 'transparent',
       },
-      data: { zone },
-      zIndex: 0,
-    };
-  });
+      data: {
+        title: 'Private Subnets',
+        description:
+          'App and k8s zones sit side by side as direct-entry tiers, while intra stays below as an internal-only dependency tier.',
+      },
+      zIndex: -1,
+    });
+  } else {
+    let currentZoneX = zoneStartX;
+    for (const zoneId of zoneOrder) {
+      const metrics = zoneLayoutMetrics.get(zoneId)!;
+      zoneLayoutMetrics.set(zoneId, {
+        ...metrics,
+        x: currentZoneX,
+        y: zoneStartY,
+      });
+      currentZoneX += metrics.width + zoneGap;
+    }
+  }
+
+  flowNodes.push(
+    ...zoneOrder.map(zoneId => {
+      const zone = model.zones.find(candidate => candidate.id === zoneId)!;
+      const zoneMetrics = zoneLayoutMetrics.get(zoneId)!;
+
+      return {
+        id: `zone:${zoneId}`,
+        type: 'zone',
+        position: {
+          x: zoneMetrics.x,
+          y: zoneMetrics.y,
+        },
+        draggable: false,
+        selectable: false,
+        style: {
+          width: zoneMetrics.width,
+          height: zoneMetrics.height,
+          border: 'none',
+          background: 'transparent',
+        },
+        data: { zone },
+        zIndex: 0,
+      };
+    }),
+  );
 
   const ingressNode = model.nodes.find(node => node.kind === 'ingress');
   if (ingressNode) {
@@ -788,7 +924,7 @@ function buildFlow(
       ? zoneLayoutMetrics.get(publicZoneId)
       : undefined;
     const ingressY = publicZoneMetrics
-      ? zoneContentYBase
+      ? publicZoneMetrics.y + zoneHeaderHeight + zonePaddingTop
       : defaultIngressY;
 
     flowNodes.push({
@@ -809,7 +945,7 @@ function buildFlow(
   for (const zoneId of zoneOrder) {
     const zoneNodes = nodesByZone.get(zoneId) ?? [];
     const zoneMetrics = zoneLayoutMetrics.get(zoneId)!;
-    const zoneContentY = zoneContentYBase;
+    const zoneContentY = zoneMetrics.y + zoneHeaderHeight + zonePaddingTop;
 
     zoneNodes.forEach(node => {
       const column = positionedColumns.get(node.id) ?? 0;
@@ -819,12 +955,7 @@ function buildFlow(
         id: node.id,
         type: 'service',
         position: {
-          x:
-            node.lane === 'dns'
-              ? zoneMetrics.x + 22
-              : zoneMetrics.x +
-                (zoneId === 'public' ? 236 : zonePaddingX) +
-                ((zoneId === 'public' ? column - 1 : column) * (nodeWidth + nodeGapX)),
+          x: zoneMetrics.x + zonePaddingLeft + column * (nodeWidth + nodeGapX),
           y: zoneContentY + row * (nodeHeight + nodeGapY),
         },
         draggable: false,
@@ -832,7 +963,7 @@ function buildFlow(
         selected: node.id === selectedNodeId,
         data: { node },
         style: {
-          width: node.lane === 'dns' ? dnsNodeWidth : nodeWidth,
+          width: nodeWidth,
         },
         zIndex: 2,
       });
@@ -841,11 +972,14 @@ function buildFlow(
 
   const flowEdges: Edge[] = model.edges.map(edge => {
     const color = edgeColor(edge.tone);
+    const handles = resolveEdgeHandles(edge, nodeById);
 
     return {
       id: edge.id,
       source: edge.source,
       target: edge.target,
+      sourceHandle: handles.sourceHandle,
+      targetHandle: handles.targetHandle,
       animated: edge.animated,
       label: edge.label,
       type: 'smoothstep',
@@ -1036,6 +1170,7 @@ export function ProjectServiceMap({
 
   const flow = buildFlow(model, selectedNodeId);
   const selectedSummary = getSelectedNodeSummary(model, selectedNodeId);
+  const selectedDetails = selectedSummary?.node.details ?? [];
   const visibleNodeRows = getVisibleNodeRows(model);
   const inventoryColumns: TableColumn<(typeof visibleNodeRows)[number]>[] = [
     {
@@ -1095,6 +1230,8 @@ export function ProjectServiceMap({
     setSelectedNodeId(node.id);
   };
   const ownedResources = selectedSummary?.node.ownedResources ?? [];
+  const hasTopologyDetails = selectedDetails.length > 0;
+  const hasOwnedResources = ownedResources.length > 0;
 
   if (inventoryOnly) {
     return (
@@ -1121,7 +1258,7 @@ export function ProjectServiceMap({
     <div className={classes.section}>
       <InfoCard
         title="Service Map"
-        subheader="Traffic-oriented topology for the current project, including shared edge stacks, DNS entry points, and downstream components."
+        subheader="Traffic-oriented topology for the current project, including domain-record entry points, shared edge stacks, and downstream components."
       >
         <div className={classes.wrapper}>
           <div className={classes.canvas}>
@@ -1139,6 +1276,7 @@ export function ProjectServiceMap({
               nodeTypes={{
                 service: ServiceNodeCard,
                 zone: ZoneNode,
+                zoneGroup: ZoneGroupNode,
               }}
             >
               <Background gap={28} size={1.2} color="rgba(148, 163, 184, 0.22)" />
@@ -1149,8 +1287,8 @@ export function ProjectServiceMap({
       </InfoCard>
 
       <InfoCard
-        title="Selected Component"
-        subheader="Details for the currently selected node in the service map. Select a node to inspect its topology metadata and, when applicable, its stack chain."
+        title="Selected Node"
+        subheader="Details for the currently selected node in the service map. Select a node to inspect its topology metadata and, when applicable, its owned resource chain."
       >
         <div className={classes.selectedGrid}>
           <div className={classes.selectedPrimary}>
@@ -1221,7 +1359,38 @@ export function ProjectServiceMap({
             </div>
           </div>
 
-          {ownedResources.length > 0 ? (
+          {hasTopologyDetails ? (
+            <div className={classes.selectedSection}>
+              <Typography className={classes.selectedSectionTitle}>
+                Topology Details
+              </Typography>
+              <Typography className={classes.selectedSectionHint}>
+                Metadata attached to the selected node, including hosted zones,
+                edge attachments, and service hops.
+              </Typography>
+              <div className={classes.resourceDiagram}>
+                {selectedDetails.map(detail => (
+                  <div key={detail.id} className={classes.resourceNode}>
+                    {detail.entityRef ? (
+                      <EntityLinkWithIcon
+                        entityRef={detail.entityRef}
+                        label={detail.title}
+                      />
+                    ) : (
+                      <Typography className={classes.resourceNodeTitle}>
+                        {detail.title}
+                      </Typography>
+                    )}
+                    <Typography className={classes.resourceNodeSubtitle}>
+                      {detail.subtitle}
+                    </Typography>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {hasOwnedResources ? (
             <div className={classes.selectedSection}>
               <Typography className={classes.selectedSectionTitle}>
                 Owned Resources
@@ -1261,11 +1430,13 @@ export function ProjectServiceMap({
                 ])}
               </div>
             </div>
-          ) : (
+          ) : null}
+
+          {!hasTopologyDetails && !hasOwnedResources ? (
             <Typography variant="body2" className={classes.inspectorHint}>
-              No owned resources are mapped for the current selection.
+              No additional topology metadata is mapped for the current selection.
             </Typography>
-          )}
+          ) : null}
         </div>
       </InfoCard>
     </div>

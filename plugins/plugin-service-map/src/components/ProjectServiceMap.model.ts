@@ -15,6 +15,9 @@ const TRAFFIC_TARGETS_ANNOTATION = 'kabang.cloud/traffic-targets';
 
 const PUBLIC_ZONE_ID = 'public';
 const PRIVATE_ZONE_ID = 'private';
+const APP_ZONE_ID = 'app';
+const K8S_ZONE_ID = 'k8s';
+const INTRA_ZONE_ID = 'intra';
 
 type ServiceMapNodeKind = 'ingress' | 'component';
 type ServiceMapComponentKind = 'component' | 'external';
@@ -72,6 +75,24 @@ export type ProjectServiceMapModel = {
   zones: ServiceMapZone[];
 };
 
+function getStringValue(
+  source: Record<string, unknown> | undefined,
+  keys: string[],
+): string | undefined {
+  if (!source) {
+    return undefined;
+  }
+
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return undefined;
+}
+
 function titleCase(value: string): string {
   return value
     .split(/[-_\s]+/)
@@ -84,6 +105,10 @@ function humanizeInfraLabel(value: string): string {
   switch (value.toLocaleLowerCase('en-US')) {
     case 'alb':
       return 'ALB';
+    case 'cloudfront':
+      return 'CloudFront';
+    case 's3':
+      return 'S3';
     case 'waf':
       return 'WAF';
     case 'route53':
@@ -126,11 +151,8 @@ function getEdgeStackIngressZone(entity: Entity): string | undefined {
 function getZoneId(entity: Entity): string {
   if (entity.kind === EDGE_STACK_KIND) {
     const ingressSubnet = getEdgeStackIngressZone(entity);
-    if (ingressSubnet === PUBLIC_ZONE_ID) {
-      return PUBLIC_ZONE_ID;
-    }
-    if (ingressSubnet === PRIVATE_ZONE_ID) {
-      return PRIVATE_ZONE_ID;
+    if (ingressSubnet) {
+      return ingressSubnet;
     }
   }
 
@@ -180,6 +202,30 @@ function getZoneMeta(zoneId: string): ServiceMapZone {
       id: zoneId,
       title: 'Private Subnet',
       description: 'Internal components behind the private subnet',
+    };
+  }
+
+  if (zoneId === APP_ZONE_ID) {
+    return {
+      id: zoneId,
+      title: 'App Subnet',
+      description: 'Direct-entry application workloads, data stores, and internal services',
+    };
+  }
+
+  if (zoneId === K8S_ZONE_ID) {
+    return {
+      id: zoneId,
+      title: 'K8s Subnet',
+      description: 'Direct-entry Kubernetes ingress and container workloads',
+    };
+  }
+
+  if (zoneId === INTRA_ZONE_ID) {
+    return {
+      id: zoneId,
+      title: 'Intra Subnet',
+      description: 'Internal-only enterprise systems reachable from app and k8s',
     };
   }
 
@@ -333,7 +379,11 @@ function getEdgeStackOwnedResources(
       const kind = String(item.kind ?? '').toLocaleLowerCase('en-US');
       const role = String(item.role ?? '').toLocaleLowerCase('en-US');
 
-      return kind !== 'waf' && role !== 'shield';
+      return kind !== 'waf' &&
+        role !== 'shield' &&
+        kind !== 'route53' &&
+        kind !== 'dns' &&
+        role !== 'dns';
     }),
     ...hops,
   ].map((item, index) => {
@@ -361,7 +411,50 @@ function getEdgeStackOwnedResources(
   return resources.length > 0 ? resources : undefined;
 }
 
-function getEdgeStackDnsNodes(entity: Entity): ServiceMapNode[] {
+function getComponentOwnedResources(
+  entity: Entity,
+): ServiceMapResourceLink[] | undefined {
+  if (entity.kind !== 'Component') {
+    return undefined;
+  }
+
+  const spec = entity.spec as Record<string, unknown> | undefined;
+  const runtimeResources = Array.isArray(spec?.runtimeResources)
+    ? (spec?.runtimeResources as Array<Record<string, unknown>>)
+    : [];
+
+  const resources = runtimeResources.map((item, index) => {
+    const entityRef =
+      typeof item.entityRef === 'string' ? String(item.entityRef) : undefined;
+    const parsedRef = entityRef
+      ? parseEntityRef(entityRef, {
+          defaultKind: 'Resource',
+          defaultNamespace: entity.metadata.namespace,
+        })
+      : undefined;
+    let title: string;
+    if (typeof item.title === 'string' && item.title.trim()) {
+      title = item.title.trim();
+    } else if (parsedRef) {
+      title = humanizeInfraLabel(parsedRef.name);
+    } else {
+      title = humanizeInfraLabel(String(item.kind ?? item.role ?? `resource-${index + 1}`));
+    }
+
+    return {
+      id: `${getEntityRef(entity)}:runtime-resource:${index}`,
+      entityRef: parsedRef ? stringifyEntityRef(parsedRef) : entityRef,
+      title,
+      subtitle: `${String(item.role ?? 'resource')} · ${humanizeInfraLabel(
+        String(item.kind ?? parsedRef?.kind ?? 'resource'),
+      )}`,
+    };
+  });
+
+  return resources.length > 0 ? resources : undefined;
+}
+
+function getEdgeStackDnsAttachments(entity: Entity): Array<Record<string, unknown>> {
   if (entity.kind !== EDGE_STACK_KIND) {
     return [];
   }
@@ -371,37 +464,117 @@ function getEdgeStackDnsNodes(entity: Entity): ServiceMapNode[] {
     ? (spec?.attachments as Array<Record<string, unknown>>)
     : [];
 
-  return attachments
-    .filter(attachment => {
-      const kind = String(attachment.kind ?? '').toLocaleLowerCase('en-US');
-      const role = String(attachment.role ?? '').toLocaleLowerCase('en-US');
+  return attachments.filter(attachment => {
+    const kind = String(attachment.kind ?? '').toLocaleLowerCase('en-US');
+    const role = String(attachment.role ?? '').toLocaleLowerCase('en-US');
 
-      return kind === 'route53' || kind === 'dns' || role === 'dns';
-    })
-    .map((attachment, index) => {
-      const ref =
-        typeof attachment.entityRef === 'string'
-          ? attachment.entityRef
-          : `${getEntityRef(entity)}:dns:${index}`;
-      const parsedRef = parseEntityRef(ref, {
-        defaultKind: 'Resource',
-        defaultNamespace: entity.metadata.namespace,
+    return kind === 'route53' || kind === 'dns' || role === 'dns';
+  });
+}
+
+function getIngressRecordLabel(project: Entity, projectComponents: Entity[]): string {
+  const publicEdgeStacks = projectComponents.filter(
+    entity => entity.kind === EDGE_STACK_KIND && getZoneId(entity) === PUBLIC_ZONE_ID,
+  );
+
+  for (const entity of publicEdgeStacks) {
+    const spec = entity.spec as Record<string, unknown> | undefined;
+    const routing =
+      spec?.routing && typeof spec.routing === 'object'
+        ? (spec.routing as Record<string, unknown>)
+        : undefined;
+
+    const routingLabel = getStringValue(routing, [
+      'hostname',
+      'host',
+      'fqdn',
+      'record',
+      'recordName',
+      'dnsName',
+      'domain',
+      'domainName',
+    ]);
+    if (routingLabel) {
+      return routingLabel;
+    }
+
+    for (const attachment of getEdgeStackDnsAttachments(entity)) {
+      const attachmentLabel = getStringValue(attachment, [
+        'hostname',
+        'host',
+        'fqdn',
+        'record',
+        'recordName',
+        'dnsName',
+        'domain',
+        'domainName',
+      ]);
+      if (attachmentLabel) {
+        return attachmentLabel;
+      }
+    }
+  }
+
+  return project.metadata.name;
+}
+
+function getIngressDetails(projectComponents: Entity[]): ServiceMapNodeDetail[] | undefined {
+  const publicEdgeStacks = projectComponents.filter(
+    entity => entity.kind === EDGE_STACK_KIND && getZoneId(entity) === PUBLIC_ZONE_ID,
+  );
+  const details: ServiceMapNodeDetail[] = [];
+  const seen = new Set<string>();
+
+  for (const entity of publicEdgeStacks) {
+    for (const attachment of getEdgeStackDnsAttachments(entity)) {
+      const entityRef =
+        typeof attachment.entityRef === 'string' ? attachment.entityRef : undefined;
+      const parsedRef = entityRef
+        ? parseEntityRef(entityRef, {
+            defaultKind: 'Resource',
+            defaultNamespace: entity.metadata.namespace,
+          })
+        : undefined;
+      const normalizedEntityRef = parsedRef ? stringifyEntityRef(parsedRef) : undefined;
+      const title = parsedRef
+        ? humanizeInfraLabel(parsedRef.name)
+        : humanizeInfraLabel(
+            String(attachment.title ?? attachment.kind ?? attachment.role ?? 'hosted-zone'),
+          );
+      const subtitle = `hosted zone · ${humanizeInfraLabel(
+        String(attachment.kind ?? parsedRef?.kind ?? 'resource'),
+      )}`;
+      const key = normalizedEntityRef ?? `${title}:${subtitle}`;
+
+      if (seen.has(key)) {
+        continue;
+      }
+
+      seen.add(key);
+      details.push({
+        id: `public-traffic:detail:${details.length}`,
+        entityRef: normalizedEntityRef,
+        title,
+        subtitle,
+        role: 'hosted-zone',
+        detailKind: 'attachment',
       });
+    }
+  }
 
-      return {
-        id: `${getEntityRef(entity)}:dns:${index}`,
-        kind: 'component',
-        componentKind: 'component',
-        catalogKind: parsedRef.kind,
-        entityRef: stringifyEntityRef(parsedRef),
-        title: humanizeInfraLabel(parsedRef.name),
-        subtitle: `${humanizeInfraLabel(String(attachment.kind ?? 'route53'))} · dns`,
-        zone: PUBLIC_ZONE_ID,
-        lane: 'dns',
-        exposure: 'public',
-        tone: 'public',
-      };
-    });
+  return details.length > 0 ? details : undefined;
+}
+
+function getIngressSubtitle(details?: ServiceMapNodeDetail[]): string {
+  if (!details || details.length === 0) {
+    return 'Domain Record';
+  }
+
+  if (details.length === 1) {
+    return `Domain Record · ${details[0].title}`;
+  }
+
+  return `Domain Record · ${details.length} hosted zones`;
 }
 
 function createComponentNode(entity: Entity): ServiceMapNode {
@@ -425,7 +598,10 @@ function createComponentNode(entity: Entity): ServiceMapNode {
     exposure: getExposure(zone),
     tone: zone === PUBLIC_ZONE_ID ? 'public' : 'private',
     details: getEdgeStackDetails(entity),
-    ownedResources: getEdgeStackOwnedResources(entity),
+    ownedResources:
+      entity.kind === EDGE_STACK_KIND
+        ? getEdgeStackOwnedResources(entity)
+        : getComponentOwnedResources(entity),
   };
 }
 
@@ -452,7 +628,13 @@ function createExternalNode(entityRef: string): ServiceMapNode {
 }
 
 function compareZoneIds(left: string, right: string): number {
-  const orderedZones = [PUBLIC_ZONE_ID, PRIVATE_ZONE_ID];
+  const orderedZones = [
+    PUBLIC_ZONE_ID,
+    APP_ZONE_ID,
+    K8S_ZONE_ID,
+    PRIVATE_ZONE_ID,
+    INTRA_ZONE_ID,
+  ];
   const leftIndex = orderedZones.indexOf(left);
   const rightIndex = orderedZones.indexOf(right);
 
@@ -462,6 +644,81 @@ function compareZoneIds(left: string, right: string): number {
   }
 
   return left.localeCompare(right);
+}
+
+function buildZoneOrder(
+  nodes: ServiceMapNode[],
+  edges: ServiceMapEdge[],
+): ServiceMapZone[] {
+  const zoneIds = Array.from(new Set(nodes.map(node => node.zone)));
+  if (!zoneIds.includes(PUBLIC_ZONE_ID)) {
+    return zoneIds.sort(compareZoneIds).map(getZoneMeta);
+  }
+
+  const nodeById = new Map(nodes.map(node => [node.id, node]));
+  const adjacency = new Map<string, Set<string>>();
+
+  for (const zoneId of zoneIds) {
+    adjacency.set(zoneId, new Set<string>());
+  }
+
+  for (const edge of edges) {
+    const sourceZone =
+      edge.source === 'public-traffic'
+        ? PUBLIC_ZONE_ID
+        : nodeById.get(edge.source)?.zone;
+    const targetZone = nodeById.get(edge.target)?.zone;
+
+    if (!sourceZone || !targetZone || sourceZone === targetZone) {
+      continue;
+    }
+
+    const targets = adjacency.get(sourceZone) ?? new Set<string>();
+    targets.add(targetZone);
+    adjacency.set(sourceZone, targets);
+  }
+
+  const zoneDistance = new Map<string, number>([[PUBLIC_ZONE_ID, 0]]);
+  const queue = [PUBLIC_ZONE_ID];
+
+  while (queue.length > 0) {
+    const zoneId = queue.shift()!;
+    const distance = zoneDistance.get(zoneId) ?? 0;
+
+    for (const nextZone of adjacency.get(zoneId) ?? []) {
+      if (zoneDistance.has(nextZone)) {
+        continue;
+      }
+
+      zoneDistance.set(nextZone, distance + 1);
+      queue.push(nextZone);
+    }
+  }
+
+  return zoneIds
+    .sort((left, right) => {
+      if (left === PUBLIC_ZONE_ID) {
+        return -1;
+      }
+      if (right === PUBLIC_ZONE_ID) {
+        return 1;
+      }
+      if (left === INTRA_ZONE_ID && right !== INTRA_ZONE_ID) {
+        return 1;
+      }
+      if (right === INTRA_ZONE_ID && left !== INTRA_ZONE_ID) {
+        return -1;
+      }
+
+      const leftDistance = zoneDistance.get(left) ?? Number.MAX_SAFE_INTEGER;
+      const rightDistance = zoneDistance.get(right) ?? Number.MAX_SAFE_INTEGER;
+      if (leftDistance !== rightDistance) {
+        return leftDistance - rightDistance;
+      }
+
+      return compareZoneIds(left, right);
+    })
+    .map(getZoneMeta);
 }
 
 function buildComponentEdges(
@@ -542,20 +799,10 @@ export function buildProjectServiceMapModel(
   projectComponents: Entity[],
 ): ProjectServiceMapModel {
   const componentNodes = projectComponents.map(createComponentNode);
-  const dnsNodes = projectComponents.flatMap(getEdgeStackDnsNodes);
-  const edges = [
-    ...dnsNodes.map(node => ({
-      id: `${node.id}->${node.id.split(':dns:')[0]}`,
-      source: node.id,
-      target: node.id.split(':dns:')[0],
-      label: 'resolves',
-      animated: false,
-      tone: 'entry' as const,
-    })),
-    ...buildComponentEdges([...dnsNodes, ...componentNodes], projectComponents),
-  ];
+  const ingressDetails = getIngressDetails(projectComponents);
+  const edges = buildComponentEdges([...componentNodes], projectComponents);
   const incomingTargets = new Set(edges.map(edge => edge.target));
-  const publicNodes = [...dnsNodes, ...componentNodes].filter(
+  const publicNodes = componentNodes.filter(
     node => node.zone === PUBLIC_ZONE_ID && !incomingTargets.has(node.id),
   );
 
@@ -563,14 +810,14 @@ export function buildProjectServiceMapModel(
     {
       id: 'public-traffic',
       kind: 'ingress',
-      title: 'Public Traffic',
-      subtitle: getEntityTitle(project),
+      title: getIngressRecordLabel(project, projectComponents),
+      subtitle: getIngressSubtitle(ingressDetails),
       zone: PUBLIC_ZONE_ID,
       lane: 'service',
       exposure: 'public',
       tone: 'entry',
+      details: ingressDetails,
     },
-    ...dnsNodes,
     ...componentNodes,
   ];
 
@@ -585,9 +832,7 @@ export function buildProjectServiceMapModel(
     });
   }
 
-  const zones = Array.from(new Set(nodes.map(node => node.zone)))
-    .sort(compareZoneIds)
-    .map(getZoneMeta);
+  const zones = buildZoneOrder(nodes, edges);
 
   return {
     nodes,

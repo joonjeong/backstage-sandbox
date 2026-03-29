@@ -40,4 +40,14 @@ INSERT INTO project_metadata (
     'user:default/guest',
     'group:default/guests',
     '2026-03-29T00:05:00.000Z'
+  ),
+  (
+    3,
+    'sample-projects',
+    'app-webview',
+    'App Webview',
+    'Static webview project with a public TLS/mTLS gateway, segmented private subnets, and Kubernetes-backed application traffic.',
+    'user:default/guest',
+    'group:default/guests',
+    '2026-03-30T00:00:00.000Z'
   );

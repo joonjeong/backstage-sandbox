@@ -85,14 +85,12 @@ kind: EdgeStack
 
 즉, 프로젝트 멤버십과 트래픽 방향을 분리한다.
 
-### 4. Route53 은 맵에 보이고, WAF 는 ALB 세부 정보로 유지한다
+### 4. Public ingress 는 domain record 로 표현하고, hosted zone 은 그 속성으로 유지한다
 
-`Public Subnet` 내부에 두 개의 시각 lane 을 둔다.
+Public ingress 카드는 특정 domain record 를 나타낸다.
 
-- `DNS Zone`
-- `Edge Stack & Workloads`
-
-DNS 계열 attachment 는 별도 DNS 노드로 승격한다.
+Route53 / DNS 계열 attachment 는 더 이상 별도 DNS 노드로 승격하지 않는다.
+대신 ingress 노드의 topology metadata 로 유지한다.
 
 WAF 는 현재 1급 맵 노드로 올리지 않고 ALB 관련 세부 정보로만 유지한다.
 `Owned Resources` 다이어그램에서도 WAF 는 독립 리소스로 나열하지 않고 ALB 노드의 속성으로 흡수한다.
@@ -127,12 +125,13 @@ entity 링크는 새 탭으로 열리고 외부 링크 아이콘을 가진다.
 
 - 프로젝트 단위의 트래픽 중심 서비스 맵
 - shared edge stack 표현
-- Route53, ALB, Envoy on ECS, internal API 를 하나의 문맥에서 이해
+- domain record, ALB, Envoy on ECS, internal API 를 하나의 문맥에서 이해
 - `Inventory` 탭과 서비스맵의 데이터 정렬
 
 ## 제약
 
 - `fitView`는 사용 중이지만, 실제 품질은 사전 계산된 노드 위치와 zone 폭에 크게 좌우된다.
+- domain record 문자열은 catalog metadata에 명시되어 있지 않으면 현재 project name fallback 을 사용한다.
 - `Owned Resources`는 실제 리소스 간 dependency graph 없이 단순 ordered chain 으로 렌더링된다.
 - WAF 는 독립 노드가 아니라 ALB 관련 세부 정보로만 남는다.
 

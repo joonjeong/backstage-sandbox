@@ -113,15 +113,11 @@ trafficType?: string
 - `spec.network.ingressSubnet`
 - 없으면 `spec.exposure.ingress`
 
-### DNS 노드 승격
+### Domain Record 메타데이터
 
-attachment 중 DNS 계열은 서비스맵에서 별도 DNS 노드로 승격된다.
+attachment 중 DNS 계열은 서비스맵에서 별도 DNS 노드로 승격되지 않는다.
 
-승격 대상:
-
-- `kind: route53`
-- `kind: dns`
-- `role: dns`
+대신 public ingress domain record 의 hosted zone 메타데이터로 유지된다.
 
 ### WAF 처리
 
@@ -142,12 +138,12 @@ apiVersion: kabang.cloud/v1
 kind: EdgeStack
 metadata:
   name: shared-public-web-entry
-  title: Shared Public Web Entry
-  description: Shared public ALB to Envoy on ECS edge stack for internal API traffic.
+  title: TLS/mTLS Gateway
+  description: Shared public ALB to Envoy gateway for TLS and mTLS protected API traffic.
 spec:
   owner: guests
   team: guests
-  pattern: public-web-entry
+  pattern: tls-mtls-gateway
   shared: true
   projects:
     - guest-portal

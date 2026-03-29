@@ -62,7 +62,8 @@ import { ProjectServiceMap } from '@internal/plugin-service-map';
 - 서비스 맵 노드/엣지/zone 뷰 모델 생성
 - project membership 판정
 - `EdgeStack` detail/resource 정규화
-- DNS 노드 승격
+- public ingress domain-record metadata 정규화
+- static web component `spec.runtimeResources` 정규화
 
 ## 데이터 흐름
 
@@ -81,12 +82,14 @@ import { ProjectServiceMap } from '@internal/plugin-service-map';
 - `InfoCard` 기반
 - 좌에서 우로 읽는 트래픽 흐름
 - `Public Subnet`, `Private Subnet` 구분
-- `Public Subnet` 안에서 `DNS Zone` / `Edge Stack & Workloads` lane 분리
+- public ingress는 별도 DNS 노드 대신 domain record 엔트리로 표현
+- hosted zone 정보는 ingress 노드 메타데이터로 유지
 
 ### Selected Component
 
 - `InfoCard` 기반
 - 기본 메타데이터 표시
+- ingress, edge stack, component 공통으로 topology metadata 표시
 - 새 탭으로 열리는 entity 링크 제공
 - `Owned Resources` 다이어그램 제공
 
@@ -125,7 +128,7 @@ import { ProjectServiceMap } from '@internal/plugin-service-map';
 
 4. inventory table columns 분리
 5. selected component view model 분리
-6. DNS lane 전용 layout primitive 도입
+6. ingress/domain record metadata view model 분리
 
 ## 배치 원칙
 

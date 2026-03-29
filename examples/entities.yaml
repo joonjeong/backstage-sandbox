@@ -47,16 +47,96 @@ spec:
   owner: guests
   system: examples
 ---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: guest-ops-console-cdn
+  title: Guest Ops Console CDN
+spec:
+  type: cdn
+  owner: guests
+  system: examples
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: guest-ops-console-static-site
+  title: Guest Ops Console Static Site
+spec:
+  type: object-storage
+  owner: guests
+  system: examples
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: app-webview-static-cdn
+  title: App Webview Static CDN
+spec:
+  type: cdn
+  owner: guests
+  system: examples
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: app-webview-static-site
+  title: App Webview Static Site
+spec:
+  type: object-storage
+  owner: guests
+  system: examples
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: app-webview-k8s-ingress-alb
+  title: App Webview K8s Ingress ALB
+spec:
+  type: load-balancer
+  owner: guests
+  system: examples
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: app-webview-edge-alb
+  title: App Webview Edge ALB
+spec:
+  type: load-balancer
+  owner: guests
+  system: examples
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: app-webview-edge-envoy
+  title: App Webview Edge Envoy
+spec:
+  type: compute
+  owner: guests
+  system: examples
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: app-webview-traefik
+  title: App Webview Traefik
+spec:
+  type: ingress-controller
+  owner: guests
+  system: examples
+---
 apiVersion: kabang.cloud/v1
 kind: EdgeStack
 metadata:
   name: shared-public-web-entry
-  title: Shared Public Web Entry
-  description: Shared public ALB to Envoy on ECS edge stack for internal API traffic.
+  title: TLS/mTLS Gateway
+  description: Shared public ALB to Envoy gateway for TLS and mTLS protected API traffic.
 spec:
   owner: guests
   team: guests
-  pattern: public-web-entry
+  pattern: tls-mtls-gateway
   shared: true
   projects:
     - guest-portal
@@ -92,6 +172,83 @@ spec:
       trafficType: http
     - entityRef: component:default/guest-ops-console-api
       trafficType: http
+---
+apiVersion: kabang.cloud/v1
+kind: EdgeStack
+metadata:
+  name: app-webview-tls-mtls-gateway
+  title: TLS/mTLS Gateway
+  description: Public gateway for app-webview using ALB and Envoy before handing off to the Kubernetes ingress tier.
+spec:
+  owner: guests
+  team: guests
+  pattern: tls-mtls-gateway
+  projects:
+    - app-webview
+  exposure:
+    ingress: public
+    upstream: private
+  network:
+    ingressSubnet: public
+    upstreamSubnet: k8s
+    region: ap-northeast-2
+    environment: production
+  routing:
+    mode: host-path
+    protocol: https
+    tlsTerminationAt: alb
+  attachments:
+    - role: dns
+      kind: route53
+      entityRef: resource:default/public-hosted-zone
+    - role: shield
+      kind: waf
+      entityRef: resource:default/edge-waf
+  hops:
+    - role: ingress
+      kind: alb
+      entityRef: resource:default/app-webview-edge-alb
+    - role: proxy
+      kind: envoy-on-ecs
+      entityRef: resource:default/app-webview-edge-envoy
+  targets:
+    - entityRef: edgestack:default/app-webview-k8s-ingress
+      trafficType: https
+---
+apiVersion: kabang.cloud/v1
+kind: EdgeStack
+metadata:
+  name: app-webview-k8s-ingress
+  title: K8s Ingress Tier
+  description: Kubernetes ingress tier using an ALB and Traefik before traffic reaches the workload.
+spec:
+  owner: guests
+  team: guests
+  pattern: k8s-ingress
+  projects:
+    - app-webview
+  exposure:
+    ingress: k8s
+    upstream: k8s
+  network:
+    ingressSubnet: k8s
+    upstreamSubnet: k8s
+    region: ap-northeast-2
+    environment: production
+  routing:
+    mode: host-path
+    protocol: https
+    tlsTerminationAt: alb
+  hops:
+    - role: ingress
+      kind: alb
+      entityRef: resource:default/app-webview-k8s-ingress-alb
+    - role: proxy
+      kind: traefik
+      entityRef: resource:default/app-webview-traefik
+  targets:
+    - entityRef: component:default/app-webview-workload
+      trafficType: https
 ---
 # https://backstage.io/docs/features/software-catalog/descriptor-format#kind-component
 apiVersion: backstage.io/v1alpha1
@@ -139,7 +296,7 @@ kind: Component
 metadata:
   name: guest-ops-console-ui
   title: Guest Ops Console UI
-  description: Operator-facing UI for the guest ops console project.
+  description: Operator-facing UI served statically through CloudFront with S3 as origin.
   annotations:
     kabang.cloud/project: guest-ops-console
 spec:
@@ -147,6 +304,15 @@ spec:
   lifecycle: production
   owner: guests
   system: examples
+  runtimeResources:
+    - role: cdn
+      kind: cloudfront
+      entityRef: resource:default/guest-ops-console-cdn
+      title: Guest Ops Console CDN
+    - role: origin
+      kind: s3
+      entityRef: resource:default/guest-ops-console-static-site
+      title: Guest Ops Console Static Site
   dependsOn: [component:default/guest-ops-console-api]
 ---
 apiVersion: backstage.io/v1alpha1
@@ -163,6 +329,93 @@ spec:
   owner: guests
   system: examples
   dependsOn: [component:default/guest-portal-api]
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: app-webview-static-web-view
+  title: Static Web View
+  description: Static web frontend served through CloudFront with S3 as the only origin.
+  annotations:
+    kabang.cloud/project: app-webview
+spec:
+  type: website
+  lifecycle: production
+  owner: guests
+  system: examples
+  runtimeResources:
+    - role: cdn
+      kind: cloudfront
+      entityRef: resource:default/app-webview-static-cdn
+      title: App Webview Static CDN
+    - role: origin
+      kind: s3
+      entityRef: resource:default/app-webview-static-site
+      title: App Webview Static Site
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: app-webview-workload
+  title: App Webview Workload
+  description: Kubernetes-based container application that serves the dynamic app-webview backend.
+  annotations:
+    kabang.cloud/project: app-webview
+    kabang.cloud/service-zone: k8s
+spec:
+  type: service
+  lifecycle: production
+  owner: guests
+  system: examples
+  dependsOn:
+    - component:default/app-webview-redis
+    - component:default/app-webview-mysql
+    - component:default/app-webview-ldap
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: app-webview-redis
+  title: Redis Cache
+  description: Redis cache in the app subnet.
+  annotations:
+    kabang.cloud/project: app-webview
+    kabang.cloud/service-zone: app
+spec:
+  type: redis
+  lifecycle: production
+  owner: guests
+  system: examples
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: app-webview-mysql
+  title: MySQL Database
+  description: MySQL database in the app subnet.
+  annotations:
+    kabang.cloud/project: app-webview
+    kabang.cloud/service-zone: app
+spec:
+  type: database
+  lifecycle: production
+  owner: guests
+  system: examples
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: app-webview-ldap
+  title: LDAP Directory
+  description: Internal LDAP directory reachable only from the app and k8s subnets.
+  annotations:
+    kabang.cloud/project: app-webview
+    kabang.cloud/service-zone: intra
+spec:
+  type: directory
+  lifecycle: production
+  owner: guests
+  system: examples
 ---
 # https://backstage.io/docs/features/software-catalog/descriptor-format#kind-api
 apiVersion: backstage.io/v1alpha1
