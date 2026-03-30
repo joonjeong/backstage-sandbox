@@ -1,8 +1,5 @@
 import { useEffect } from 'react';
-import {
-  CatalogTable,
-  type CatalogTableRow,
-} from '@backstage/plugin-catalog';
+import { CatalogTable, type CatalogTableRow } from '@backstage/plugin-catalog';
 import {
   EntityKindFilter,
   EntityListProvider,
@@ -57,22 +54,30 @@ const projectColumns: TableColumn<CatalogTableRow>[] = [
   CatalogTable.columns.createMetadataDescriptionColumn(),
 ];
 
+export function ProjectCatalogContent() {
+  return (
+    <>
+      <ProjectTableFilters />
+      <CatalogTable
+        columns={projectColumns}
+        title="Projects"
+        tableOptions={{
+          search: true,
+          paging: true,
+          pageSize: 20,
+          padding: 'dense',
+        }}
+      />
+    </>
+  );
+}
+
 export const projectCatalogPage = (
   <Page themeId="home">
     <Header title="Projects" subtitle="Catalog project inventory" />
     <Content>
       <EntityListProvider>
-        <ProjectTableFilters />
-        <CatalogTable
-          columns={projectColumns}
-          title="Projects"
-          tableOptions={{
-            search: true,
-            paging: true,
-            pageSize: 20,
-            padding: 'dense',
-          }}
-        />
+        <ProjectCatalogContent />
       </EntityListProvider>
     </Content>
   </Page>

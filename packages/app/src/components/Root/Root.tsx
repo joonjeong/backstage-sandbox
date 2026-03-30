@@ -25,8 +25,6 @@ import {
 } from '@backstage/core-components';
 import MenuIcon from '@material-ui/icons/Menu';
 import SearchIcon from '@material-ui/icons/Search';
-import { MyGroupsSidebarItem } from '@backstage/plugin-org';
-import GroupIcon from '@material-ui/icons/People';
 import FolderSpecialIcon from '@material-ui/icons/FolderSpecial';
 import { NotificationsSidebarItem } from '@backstage/plugin-notifications';
 
@@ -68,20 +66,15 @@ export const Root = ({ children }: PropsWithChildren<{}>) => (
       <SidebarDivider />
       <SidebarGroup label="Menu" icon={<MenuIcon />}>
         {/* Global nav, not org-specific */}
-        <SidebarItem icon={HomeIcon} to="catalog" text="Home" />
+        <SidebarItem icon={HomeIcon} to="/home" text="Home" />
         <SidebarItem
           icon={FolderSpecialIcon}
-          to="project"
-          text="Projects"
+          to="/resources/home"
+          text="Resources"
         />
-        <MyGroupsSidebarItem
-          singularTitle="My Group"
-          pluralTitle="My Groups"
-          icon={GroupIcon}
-        />
-        <SidebarItem icon={ExtensionIcon} to="api-docs" text="APIs" />
-        <SidebarItem icon={LibraryBooks} to="docs" text="Docs" />
-        <SidebarItem icon={CreateComponentIcon} to="create" text="Create..." />
+        <SidebarItem icon={ExtensionIcon} to="/api-docs" text="APIs" />
+        <SidebarItem icon={LibraryBooks} to="/docs" text="Docs" />
+        <SidebarItem icon={CreateComponentIcon} to="/create" text="Create..." />
         {/* End global nav */}
         <SidebarDivider />
         <SidebarScrollWrapper>

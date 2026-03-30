@@ -23,6 +23,8 @@ import { UserSettingsPage } from '@backstage/plugin-user-settings';
 import { apis } from './apis';
 import { entityPage } from './components/catalog/EntityPage';
 import { projectCatalogPage } from './components/catalog/ProjectCatalogPage';
+import { HomePage } from './components/home/HomePage';
+import { ResourcesPage } from './components/resources/ResourcesPage';
 import { searchPage } from './components/search/SearchPage';
 import { Root } from './components/Root';
 
@@ -65,7 +67,15 @@ const app = createApp({
 
 const routes = (
   <FlatRoutes>
-    <Route path="/" element={<Navigate to="catalog" />} />
+    <Route path="/" element={<Navigate to="/home" replace />} />
+    <Route path="/home" element={<HomePage />} />
+    <Route
+      path="/resources"
+      element={<Navigate to="/resources/home" replace />}
+    />
+    <Route path="/resources/home" element={<ResourcesPage />} />
+    <Route path="/resources/project" element={<ResourcesPage />} />
+    <Route path="/resources/catalog" element={<ResourcesPage />} />
     <Route path="/catalog" element={<CatalogIndexPage />} />
     <Route path="/project" element={projectCatalogPage} />
     <Route
