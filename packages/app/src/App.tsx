@@ -24,7 +24,9 @@ import { apis } from './apis';
 import { entityPage } from './components/catalog/EntityPage';
 import { projectCatalogPage } from './components/catalog/ProjectCatalogPage';
 import { HomePage } from './components/home/HomePage';
-import { ResourcesPage } from './components/resources/ResourcesPage';
+import { ResourcesCatalogPage } from './components/resources/catalog/ResourcesCatalogPage';
+import { ResourcesHomePage } from './components/resources/home/ResourcesHomePage';
+import { ResourcesProjectPage } from './components/resources/project/ResourcesProjectPage';
 import { searchPage } from './components/search/SearchPage';
 import { Root } from './components/Root';
 
@@ -73,9 +75,9 @@ const routes = (
       path="/resources"
       element={<Navigate to="/resources/home" replace />}
     />
-    <Route path="/resources/home" element={<ResourcesPage />} />
-    <Route path="/resources/project" element={<ResourcesPage />} />
-    <Route path="/resources/catalog" element={<ResourcesPage />} />
+    <Route path="/resources/home" element={<ResourcesHomePage />} />
+    <Route path="/resources/project" element={<ResourcesProjectPage />} />
+    <Route path="/resources/catalog" element={<ResourcesCatalogPage />} />
     <Route path="/catalog" element={<CatalogIndexPage />} />
     <Route path="/project" element={projectCatalogPage} />
     <Route
