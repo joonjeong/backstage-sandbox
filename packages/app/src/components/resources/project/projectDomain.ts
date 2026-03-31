@@ -5,7 +5,10 @@ import {
 import { type Entity, isDomainEntity } from '@backstage/catalog-model';
 import type { EntityFilter } from '@backstage/plugin-catalog-react';
 
-export { PROJECT_DOMAIN_ROLE, PROJECT_DOMAIN_ROLE_ANNOTATION } from '@internal/plugin-catalog-extensions-common';
+export {
+  PROJECT_DOMAIN_ROLE,
+  PROJECT_DOMAIN_ROLE_ANNOTATION,
+} from '@internal/plugin-catalog-extensions-common';
 
 export const PROJECT_DOMAIN_KIND = 'Domain';
 

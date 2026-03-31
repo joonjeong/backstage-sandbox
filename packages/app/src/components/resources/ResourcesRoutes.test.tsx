@@ -2,11 +2,11 @@ import type { ReactNode } from 'react';
 import { screen } from '@testing-library/react';
 import { renderInTestApp } from '@backstage/test-utils';
 import { Route, Routes } from 'react-router-dom';
-import { ResourcesCatalogPage } from './catalog/ResourcesCatalogPage';
+import { CatalogPage } from './catalog/CatalogPage';
 import { ResourcesHomePage } from './home/ResourcesHomePage';
-import { ResourcesProjectPage } from './project/ResourcesProjectPage';
+import { ProjectPage } from './project/ProjectPage';
 
-jest.mock('../catalog/ProjectCatalogPage', () => ({
+jest.mock('./project/ProjectCatalogPage', () => ({
   ProjectCatalogContent: () => <div>Project catalog content</div>,
 }));
 
@@ -15,7 +15,9 @@ jest.mock('@backstage/plugin-catalog', () => ({
 }));
 
 jest.mock('@backstage/plugin-catalog-react', () => {
-  const passthrough = ({ children }: { children?: ReactNode }) => <>{children}</>;
+  const passthrough = ({ children }: { children?: ReactNode }) => (
+    <>{children}</>
+  );
 
   const CatalogFilterLayout = Object.assign(passthrough, {
     Filters: passthrough,
@@ -33,8 +35,8 @@ async function renderResourcesRoute(route: string) {
   return renderInTestApp(
     <Routes>
       <Route path="/resources/home" element={<ResourcesHomePage />} />
-      <Route path="/resources/project" element={<ResourcesProjectPage />} />
-      <Route path="/resources/catalog" element={<ResourcesCatalogPage />} />
+      <Route path="/resources/project" element={<ProjectPage />} />
+      <Route path="/resources/catalog" element={<CatalogPage />} />
     </Routes>,
     { routeEntries: [route] },
   );

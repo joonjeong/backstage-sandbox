@@ -32,11 +32,8 @@ import {
   emptyProjectScenarioValues,
   projectScenarioValuesFromEntity,
   type ProjectScenarioValues,
-} from './project/projectScenario';
-import {
-  PROJECT_DOMAIN_KIND,
-  ProjectDomainFilter,
-} from './project/projectDomain';
+} from './catalog/projectScenario';
+import { PROJECT_DOMAIN_KIND, ProjectDomainFilter } from './projectDomain';
 
 type ProjectCatalogFilters = DefaultEntityFilters & {
   projectDomain?: ProjectDomainFilter;

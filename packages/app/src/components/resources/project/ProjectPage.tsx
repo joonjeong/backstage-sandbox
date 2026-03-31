@@ -1,8 +1,8 @@
 import { EntityListProvider } from '@backstage/plugin-catalog-react';
-import { ProjectCatalogContent } from '../../catalog/ProjectCatalogPage';
+import { ProjectCatalogContent } from './ProjectCatalogPage';
 import { ResourcesLayout } from '../ResourcesLayout';
 
-export function ResourcesProjectPage() {
+export function ProjectPage() {
   return (
     <ResourcesLayout currentTab="project">
       <EntityListProvider>

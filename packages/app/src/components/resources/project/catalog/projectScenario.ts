@@ -2,7 +2,7 @@ import type { Entity } from '@backstage/catalog-model';
 import {
   PROJECT_DOMAIN_ROLE,
   PROJECT_DOMAIN_ROLE_ANNOTATION,
-} from './projectDomain';
+} from '../projectDomain';
 
 export type ProjectScenarioValues = {
   name: string;

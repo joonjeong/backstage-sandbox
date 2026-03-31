@@ -110,7 +110,9 @@ export function ServiceTopologyContainer({
     return (
       <Card variant="outlined">
         <CardContent>
-          <Typography variant="h6">Service topology could not be loaded</Typography>
+          <Typography variant="h6">
+            Service topology could not be loaded
+          </Typography>
           <Typography color="textSecondary">{error.message}</Typography>
         </CardContent>
       </Card>

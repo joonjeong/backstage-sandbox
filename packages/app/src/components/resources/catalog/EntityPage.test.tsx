@@ -129,11 +129,11 @@ jest.mock('@backstage/plugin-kubernetes', () => ({
   isKubernetesAvailable: createPredicate('kubernetes:available'),
 }));
 
-jest.mock('./project/ProjectEntityPage', () => ({
+jest.mock('./entityPage/ProjectEntityPage', () => ({
   ProjectEntityPage: () => <div data-testid="project-entity-page" />,
 }));
 
-jest.mock('./project/projectDomain', () => ({
+jest.mock('../project/projectDomain', () => ({
   isProjectDomainEntity: createPredicate('project:domain'),
 }));
 

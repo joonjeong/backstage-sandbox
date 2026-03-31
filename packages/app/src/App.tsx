@@ -21,12 +21,12 @@ import { TechDocsAddons } from '@backstage/plugin-techdocs-react';
 import { ReportIssue } from '@backstage/plugin-techdocs-module-addons-contrib';
 import { UserSettingsPage } from '@backstage/plugin-user-settings';
 import { apis } from './apis';
-import { entityPage } from './components/catalog/EntityPage';
-import { projectCatalogPage } from './components/catalog/ProjectCatalogPage';
 import { HomePage } from './components/home/HomePage';
-import { ResourcesCatalogPage } from './components/resources/catalog/ResourcesCatalogPage';
+import { CatalogPage } from './components/resources/catalog/CatalogPage';
+import { entityPage } from './components/resources/catalog/EntityPage';
 import { ResourcesHomePage } from './components/resources/home/ResourcesHomePage';
-import { ResourcesProjectPage } from './components/resources/project/ResourcesProjectPage';
+import { projectCatalogPage } from './components/resources/project/ProjectCatalogPage';
+import { ProjectPage } from './components/resources/project/ProjectPage';
 import { searchPage } from './components/search/SearchPage';
 import { Root } from './components/Root';
 
@@ -76,8 +76,8 @@ const routes = (
       element={<Navigate to="/resources/home" replace />}
     />
     <Route path="/resources/home" element={<ResourcesHomePage />} />
-    <Route path="/resources/project" element={<ResourcesProjectPage />} />
-    <Route path="/resources/catalog" element={<ResourcesCatalogPage />} />
+    <Route path="/resources/project" element={<ProjectPage />} />
+    <Route path="/resources/catalog" element={<CatalogPage />} />
     <Route path="/catalog" element={<CatalogIndexPage />} />
     <Route path="/project" element={projectCatalogPage} />
     <Route

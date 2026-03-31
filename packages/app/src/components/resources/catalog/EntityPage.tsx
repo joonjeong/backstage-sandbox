@@ -1,12 +1,12 @@
 import { EntitySwitch, isKind } from '@backstage/plugin-catalog';
 import { type Entity } from '@backstage/catalog-model';
-import { ProjectEntityPage } from './project/ProjectEntityPage';
-import { isProjectDomainEntity } from './project/projectDomain';
+import { isProjectDomainEntity } from '../project/projectDomain';
 import { apiEntityPage } from './entityPage/apiEntityPage';
 import { componentEntityPage } from './entityPage/componentEntityPage';
 import { defaultEntityPage } from './entityPage/defaultEntityPage';
 import { domainEntityPage } from './entityPage/domainEntityPage';
 import { groupEntityPage } from './entityPage/groupEntityPage';
+import { ProjectEntityPage } from './entityPage/ProjectEntityPage';
 import { entityWarningContent } from './entityPage/shared';
 import { systemEntityPage } from './entityPage/systemEntityPage';
 import { userEntityPage } from './entityPage/userEntityPage';

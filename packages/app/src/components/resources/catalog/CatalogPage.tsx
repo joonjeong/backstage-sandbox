@@ -6,7 +6,7 @@ import {
 } from '@backstage/plugin-catalog-react';
 import { ResourcesLayout } from '../ResourcesLayout';
 
-export function ResourcesCatalogPage() {
+export function CatalogPage() {
   return (
     <ResourcesLayout currentTab="catalog">
       <EntityListProvider>
