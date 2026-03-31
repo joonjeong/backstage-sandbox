@@ -7,7 +7,10 @@ import {
 } from '@backstage/catalog-model';
 
 const PROJECT_ANNOTATION = 'kabang.cloud/project';
-const EDGE_STACK_KIND = 'EdgeStack';
+const EDGE_STACK_SYSTEM_KIND = 'System';
+const EDGE_STACK_SYSTEM_ROLE_ANNOTATION = 'kabang.cloud/system-role';
+const EDGE_STACK_SYSTEM_ROLE = 'edge-stack';
+const EDGE_STACK_EXTENSION_KEY = 'x-edgestack';
 const RELATION_ROUTES_TRAFFIC_TO = 'routesTrafficTo';
 const SERVICE_ZONE_ANNOTATION = 'kabang.cloud/service-zone';
 const TRAFFIC_EXPOSURE_ANNOTATION = 'kabang.cloud/traffic-exposure';
@@ -44,6 +47,7 @@ export type ServiceMapNode = {
   kind: ServiceMapNodeKind;
   componentKind?: ServiceMapComponentKind;
   catalogKind?: string;
+  entityRole?: 'edge-stack';
   entityRef?: string;
   title: string;
   subtitle?: string;
@@ -131,15 +135,42 @@ function getEntityTitle(entity: Entity): string {
   return entity.metadata.title ?? entity.metadata.name;
 }
 
+function isEdgeStackSystemEntity(entity: Entity): boolean {
+  return (
+    entity.kind === EDGE_STACK_SYSTEM_KIND &&
+    entity.metadata.annotations?.[
+      EDGE_STACK_SYSTEM_ROLE_ANNOTATION
+    ]?.trim().toLocaleLowerCase('en-US') === EDGE_STACK_SYSTEM_ROLE
+  );
+}
+
+function isEdgeStackEntity(entity: Entity): boolean {
+  return isEdgeStackSystemEntity(entity);
+}
+
+function getEdgeStackSpec(entity: Entity): Record<string, unknown> | undefined {
+  if (isEdgeStackSystemEntity(entity)) {
+    const edgeStack =
+      entity.spec?.[EDGE_STACK_EXTENSION_KEY] &&
+      typeof entity.spec[EDGE_STACK_EXTENSION_KEY] === 'object'
+        ? (entity.spec[EDGE_STACK_EXTENSION_KEY] as Record<string, unknown>)
+        : undefined;
+
+    return edgeStack;
+  }
+
+  return undefined;
+}
+
 function getEdgeStackIngressZone(entity: Entity): string | undefined {
-  const spec = entity.spec as Record<string, unknown> | undefined;
+  const edgeStack = getEdgeStackSpec(entity);
   const network =
-    spec?.network && typeof spec.network === 'object'
-      ? (spec.network as Record<string, unknown>)
+    edgeStack?.network && typeof edgeStack.network === 'object'
+      ? (edgeStack.network as Record<string, unknown>)
       : undefined;
   const exposure =
-    spec?.exposure && typeof spec.exposure === 'object'
-      ? (spec.exposure as Record<string, unknown>)
+    edgeStack?.exposure && typeof edgeStack.exposure === 'object'
+      ? (edgeStack.exposure as Record<string, unknown>)
       : undefined;
 
   const ingressZone = String(
@@ -150,27 +181,25 @@ function getEdgeStackIngressZone(entity: Entity): string | undefined {
 }
 
 function getZoneId(entity: Entity): string {
-  if (entity.kind === EDGE_STACK_KIND) {
+  if (isEdgeStackEntity(entity)) {
     const ingressSubnet = getEdgeStackIngressZone(entity);
     if (ingressSubnet) {
       return ingressSubnet;
     }
   }
 
-  const explicitZone = entity.metadata.annotations?.[
-    SERVICE_ZONE_ANNOTATION
-  ]
-    ?.trim()
-    .toLocaleLowerCase('en-US');
+  const explicitZone =
+    entity.metadata.annotations?.[
+      SERVICE_ZONE_ANNOTATION
+    ]?.trim().toLocaleLowerCase('en-US');
   if (explicitZone) {
     return explicitZone;
   }
 
-  const exposure = entity.metadata.annotations?.[
-    TRAFFIC_EXPOSURE_ANNOTATION
-  ]
-    ?.trim()
-    .toLocaleLowerCase('en-US');
+  const exposure =
+    entity.metadata.annotations?.[
+      TRAFFIC_EXPOSURE_ANNOTATION
+    ]?.trim().toLocaleLowerCase('en-US');
   if (exposure === PUBLIC_ZONE_ID) {
     return PUBLIC_ZONE_ID;
   }
@@ -226,7 +255,8 @@ function getZoneMeta(zoneId: string): ServiceMapZone {
     return {
       id: zoneId,
       title: 'DB Subnet',
-      description: 'Isolated database workloads reachable from app and k8s services',
+      description:
+        'Isolated database workloads reachable from app and k8s services',
     };
   }
 
@@ -234,7 +264,8 @@ function getZoneMeta(zoneId: string): ServiceMapZone {
     return {
       id: zoneId,
       title: 'Intra Subnet',
-      description: 'Internal-only enterprise systems reachable from app and k8s',
+      description:
+        'Internal-only enterprise systems reachable from app and k8s',
     };
   }
 
@@ -255,27 +286,27 @@ function parseTrafficTargetRef(targetRef: string, source: Entity): string {
 }
 
 function getTrafficTargets(entity: Entity): string[] {
-  const relationTypes =
-    entity.kind === EDGE_STACK_KIND
-      ? [RELATION_ROUTES_TRAFFIC_TO]
-      : [RELATION_DEPENDS_ON];
+  const relationTypes = isEdgeStackEntity(entity)
+    ? [RELATION_ROUTES_TRAFFIC_TO]
+    : [RELATION_DEPENDS_ON];
   const relationTargets = (entity.relations ?? [])
     .filter(relation => relationTypes.includes(relation.type))
     .map(relation => relation.targetRef);
 
   const annotatedTargets =
-    entity.metadata.annotations?.[TRAFFIC_TARGETS_ANNOTATION]
-      ?.split(',')
-      .map(targetRef => parseTrafficTargetRef(targetRef, entity)) ?? [];
+    entity.metadata.annotations?.[TRAFFIC_TARGETS_ANNOTATION]?.split(',').map(
+      targetRef => parseTrafficTargetRef(targetRef, entity),
+    ) ?? [];
 
   return Array.from(new Set([...relationTargets, ...annotatedTargets]));
 }
 
 function getEntityDescriptor(entity: Entity): string | undefined {
+  const edgeStack = getEdgeStackSpec(entity);
   const spec = entity.spec as Record<string, unknown> | undefined;
 
-  if (typeof spec?.pattern === 'string') {
-    return spec.pattern;
+  if (typeof edgeStack?.pattern === 'string') {
+    return edgeStack.pattern;
   }
 
   if (typeof spec?.type === 'string') {
@@ -285,12 +316,13 @@ function getEntityDescriptor(entity: Entity): string | undefined {
   return undefined;
 }
 
-function getEdgeStackDetails(entity: Entity): ServiceMapNodeDetail[] | undefined {
-  if (entity.kind !== EDGE_STACK_KIND) {
+function getEdgeStackDetails(
+  entity: Entity,
+): ServiceMapNodeDetail[] | undefined {
+  const spec = getEdgeStackSpec(entity);
+  if (!spec) {
     return undefined;
   }
-
-  const spec = entity.spec as Record<string, unknown> | undefined;
   const hops = Array.isArray(spec?.hops)
     ? (spec?.hops as Array<Record<string, unknown>>)
     : [];
@@ -316,12 +348,12 @@ function getEdgeStackDetails(entity: Entity): ServiceMapNodeDetail[] | undefined
     id: `${getEntityRef(entity)}:hop:${index}`,
     entityRef:
       typeof hop.entityRef === 'string' ? String(hop.entityRef) : undefined,
-    title: humanizeInfraLabel(String(hop.kind ?? hop.role ?? `hop-${index + 1}`)),
+    title: humanizeInfraLabel(
+      String(hop.kind ?? hop.role ?? `hop-${index + 1}`),
+    ),
     subtitle: `${String(hop.role ?? 'hop')} · ${humanizeInfraLabel(
       String(hop.kind ?? 'resource'),
-    )}${
-      index === 0 && wafTitle ? ` · WAF: ${wafTitle}` : ''
-    }`,
+    )}${index === 0 && wafTitle ? ` · WAF: ${wafTitle}` : ''}`,
     role: String(hop.role ?? 'hop'),
     detailKind: 'hop' as const,
   }));
@@ -331,22 +363,28 @@ function getEdgeStackDetails(entity: Entity): ServiceMapNodeDetail[] | undefined
       const kind = String(attachment.kind ?? '').toLocaleLowerCase('en-US');
       const role = String(attachment.role ?? '').toLocaleLowerCase('en-US');
 
-      return kind !== 'route53' && kind !== 'dns' && role !== 'dns' && kind !== 'waf' && role !== 'shield';
+      return (
+        kind !== 'route53' &&
+        kind !== 'dns' &&
+        role !== 'dns' &&
+        kind !== 'waf' &&
+        role !== 'shield'
+      );
     })
     .map((attachment, index) => ({
-    id: `${getEntityRef(entity)}:attachment:${index}`,
-    entityRef:
-      typeof attachment.entityRef === 'string'
-        ? String(attachment.entityRef)
-        : undefined,
-    title: humanizeInfraLabel(
-      String(attachment.kind ?? attachment.role ?? `attachment-${index + 1}`),
-    ),
-    subtitle: `${String(attachment.role ?? 'attachment')} · ${humanizeInfraLabel(
-      String(attachment.kind ?? 'resource'),
-    )}`,
-    role: String(attachment.role ?? 'attachment'),
-    detailKind: 'attachment' as const,
+      id: `${getEntityRef(entity)}:attachment:${index}`,
+      entityRef:
+        typeof attachment.entityRef === 'string'
+          ? String(attachment.entityRef)
+          : undefined,
+      title: humanizeInfraLabel(
+        String(attachment.kind ?? attachment.role ?? `attachment-${index + 1}`),
+      ),
+      subtitle: `${String(
+        attachment.role ?? 'attachment',
+      )} · ${humanizeInfraLabel(String(attachment.kind ?? 'resource'))}`,
+      role: String(attachment.role ?? 'attachment'),
+      detailKind: 'attachment' as const,
     }));
 
   const details = [...attachmentDetails, ...hopDetails];
@@ -357,11 +395,10 @@ function getEdgeStackDetails(entity: Entity): ServiceMapNodeDetail[] | undefined
 function getEdgeStackOwnedResources(
   entity: Entity,
 ): ServiceMapResourceLink[] | undefined {
-  if (entity.kind !== EDGE_STACK_KIND) {
+  const spec = getEdgeStackSpec(entity);
+  if (!spec) {
     return undefined;
   }
-
-  const spec = entity.spec as Record<string, unknown> | undefined;
   const attachments = Array.isArray(spec?.attachments)
     ? (spec?.attachments as Array<Record<string, unknown>>)
     : [];
@@ -388,18 +425,22 @@ function getEdgeStackOwnedResources(
       const kind = String(item.kind ?? '').toLocaleLowerCase('en-US');
       const role = String(item.role ?? '').toLocaleLowerCase('en-US');
 
-      return kind !== 'waf' &&
+      return (
+        kind !== 'waf' &&
         role !== 'shield' &&
         kind !== 'route53' &&
         kind !== 'dns' &&
-        role !== 'dns';
+        role !== 'dns'
+      );
     }),
     ...hops,
   ].map((item, index) => {
     const entityRef =
       typeof item.entityRef === 'string' ? String(item.entityRef) : undefined;
     const parsedRef = entityRef ? parseEntityRef(entityRef) : undefined;
-    const baseSubtitle = `${String(item.role ?? 'resource')} · ${humanizeInfraLabel(
+    const baseSubtitle = `${String(
+      item.role ?? 'resource',
+    )} · ${humanizeInfraLabel(
       String(item.kind ?? parsedRef?.kind ?? 'resource'),
     )}`;
     const subtitle =
@@ -447,7 +488,9 @@ function getComponentOwnedResources(
     } else if (parsedRef) {
       title = humanizeInfraLabel(parsedRef.name);
     } else {
-      title = humanizeInfraLabel(String(item.kind ?? item.role ?? `resource-${index + 1}`));
+      title = humanizeInfraLabel(
+        String(item.kind ?? item.role ?? `resource-${index + 1}`),
+      );
     }
 
     return {
@@ -463,12 +506,13 @@ function getComponentOwnedResources(
   return resources.length > 0 ? resources : undefined;
 }
 
-function getEdgeStackDnsAttachments(entity: Entity): Array<Record<string, unknown>> {
-  if (entity.kind !== EDGE_STACK_KIND) {
+function getEdgeStackDnsAttachments(
+  entity: Entity,
+): Array<Record<string, unknown>> {
+  const spec = getEdgeStackSpec(entity);
+  if (!spec) {
     return [];
   }
-
-  const spec = entity.spec as Record<string, unknown> | undefined;
   const attachments = Array.isArray(spec?.attachments)
     ? (spec?.attachments as Array<Record<string, unknown>>)
     : [];
@@ -481,13 +525,16 @@ function getEdgeStackDnsAttachments(entity: Entity): Array<Record<string, unknow
   });
 }
 
-function getIngressRecordLabel(project: Entity, projectComponents: Entity[]): string {
+function getIngressRecordLabel(
+  project: Entity,
+  projectComponents: Entity[],
+): string {
   const publicEdgeStacks = projectComponents.filter(
-    entity => entity.kind === EDGE_STACK_KIND && getZoneId(entity) === PUBLIC_ZONE_ID,
+    entity => isEdgeStackEntity(entity) && getZoneId(entity) === PUBLIC_ZONE_ID,
   );
 
   for (const entity of publicEdgeStacks) {
-    const spec = entity.spec as Record<string, unknown> | undefined;
+    const spec = getEdgeStackSpec(entity);
     const routing =
       spec?.routing && typeof spec.routing === 'object'
         ? (spec.routing as Record<string, unknown>)
@@ -527,9 +574,11 @@ function getIngressRecordLabel(project: Entity, projectComponents: Entity[]): st
   return project.metadata.name;
 }
 
-function getIngressDetails(projectComponents: Entity[]): ServiceMapNodeDetail[] | undefined {
+function getIngressDetails(
+  projectComponents: Entity[],
+): ServiceMapNodeDetail[] | undefined {
   const publicEdgeStacks = projectComponents.filter(
-    entity => entity.kind === EDGE_STACK_KIND && getZoneId(entity) === PUBLIC_ZONE_ID,
+    entity => isEdgeStackEntity(entity) && getZoneId(entity) === PUBLIC_ZONE_ID,
   );
   const details: ServiceMapNodeDetail[] = [];
   const seen = new Set<string>();
@@ -537,18 +586,27 @@ function getIngressDetails(projectComponents: Entity[]): ServiceMapNodeDetail[] 
   for (const entity of publicEdgeStacks) {
     for (const attachment of getEdgeStackDnsAttachments(entity)) {
       const entityRef =
-        typeof attachment.entityRef === 'string' ? attachment.entityRef : undefined;
+        typeof attachment.entityRef === 'string'
+          ? attachment.entityRef
+          : undefined;
       const parsedRef = entityRef
         ? parseEntityRef(entityRef, {
             defaultKind: 'Resource',
             defaultNamespace: entity.metadata.namespace,
           })
         : undefined;
-      const normalizedEntityRef = parsedRef ? stringifyEntityRef(parsedRef) : undefined;
+      const normalizedEntityRef = parsedRef
+        ? stringifyEntityRef(parsedRef)
+        : undefined;
       const title = parsedRef
         ? humanizeInfraLabel(parsedRef.name)
         : humanizeInfraLabel(
-            String(attachment.title ?? attachment.kind ?? attachment.role ?? 'hosted-zone'),
+            String(
+              attachment.title ??
+                attachment.kind ??
+                attachment.role ??
+                'hosted-zone',
+            ),
           );
       const subtitle = `hosted zone · ${humanizeInfraLabel(
         String(attachment.kind ?? parsedRef?.kind ?? 'resource'),
@@ -599,6 +657,7 @@ function createComponentNode(entity: Entity): ServiceMapNode {
     kind: 'component',
     componentKind: 'component',
     catalogKind: entity.kind,
+    entityRole: isEdgeStackEntity(entity) ? 'edge-stack' : undefined,
     entityRef: getEntityRef(entity),
     title: getEntityTitle(entity),
     subtitle: subtitleParts.join(' · '),
@@ -607,10 +666,9 @@ function createComponentNode(entity: Entity): ServiceMapNode {
     exposure: getExposure(zone),
     tone: zone === PUBLIC_ZONE_ID ? 'public' : 'private',
     details: getEdgeStackDetails(entity),
-    ownedResources:
-      entity.kind === EDGE_STACK_KIND
-        ? getEdgeStackOwnedResources(entity)
-        : getComponentOwnedResources(entity),
+    ownedResources: isEdgeStackEntity(entity)
+      ? getEdgeStackOwnedResources(entity)
+      : getComponentOwnedResources(entity),
   };
 }
 
@@ -649,8 +707,10 @@ function compareZoneIds(left: string, right: string): number {
   const rightIndex = orderedZones.indexOf(right);
 
   if (leftIndex !== -1 || rightIndex !== -1) {
-    return (leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex) -
-      (rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex);
+    return (
+      (leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex) -
+      (rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex)
+    );
   }
 
   return left.localeCompare(right);
@@ -743,7 +803,7 @@ function buildComponentEdges(
     const sourceRef = getEntityRef(component);
 
     for (const targetRef of getTrafficTargets(component)) {
-      if (component.kind === EDGE_STACK_KIND && !visibleNodeIds.has(targetRef)) {
+      if (isEdgeStackEntity(component) && !visibleNodeIds.has(targetRef)) {
         continue;
       }
 
@@ -790,11 +850,14 @@ export function belongsToProject(entity: Entity, project: Entity): boolean {
   const projectRef = getEntityRef(project);
   const projectName = project.metadata.name;
   const annotatedProjects =
-    entity.metadata.annotations?.[PROJECT_ANNOTATION]
-      ?.split(',')
-      .map(ref => ref.trim()) ?? [];
+    entity.metadata.annotations?.[PROJECT_ANNOTATION]?.split(',').map(ref =>
+      ref.trim(),
+    ) ?? [];
 
-  if (annotatedProjects.includes(projectRef) || annotatedProjects.includes(projectName)) {
+  if (
+    annotatedProjects.includes(projectRef) ||
+    annotatedProjects.includes(projectName)
+  ) {
     return true;
   }
 

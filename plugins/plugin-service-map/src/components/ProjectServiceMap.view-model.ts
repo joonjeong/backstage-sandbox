@@ -1,4 +1,7 @@
-import type { ProjectServiceMapModel, ServiceMapNode } from './ProjectServiceMap.model';
+import type {
+  ProjectServiceMapModel,
+  ServiceMapNode,
+} from './ProjectServiceMap.model';
 
 export type ServiceMapSelectedNodeSummary = {
   node: ServiceMapNode;
@@ -23,7 +26,7 @@ export function getDefaultSelectedNodeId(
   model: ProjectServiceMapModel,
 ): string | undefined {
   return (
-    model.nodes.find(node => node.catalogKind === 'EdgeStack')?.id ??
+    model.nodes.find(node => node.entityRole === 'edge-stack')?.id ??
     model.nodes.find(node => node.kind === 'component')?.id ??
     model.nodes[0]?.id
   );
@@ -45,7 +48,8 @@ export function getSelectedNodeSummary(
   const incoming = model.edges.filter(edge => edge.target === selectedNodeId);
   const outgoing = model.edges.filter(edge => edge.source === selectedNodeId);
   const zone =
-    model.zones.find(candidate => candidate.id === node.zone)?.title ?? node.zone;
+    model.zones.find(candidate => candidate.id === node.zone)?.title ??
+    node.zone;
 
   return {
     node,
@@ -61,10 +65,15 @@ export function getVisibleNodeRows(
   return model.nodes
     .filter(node => node.kind === 'component')
     .map(node => {
-      const incomingCount = model.edges.filter(edge => edge.target === node.id).length;
-      const outgoingCount = model.edges.filter(edge => edge.source === node.id).length;
+      const incomingCount = model.edges.filter(
+        edge => edge.target === node.id,
+      ).length;
+      const outgoingCount = model.edges.filter(
+        edge => edge.source === node.id,
+      ).length;
       const zone =
-        model.zones.find(candidate => candidate.id === node.zone)?.title ?? node.zone;
+        model.zones.find(candidate => candidate.id === node.zone)?.title ??
+        node.zone;
 
       return {
         id: node.id,

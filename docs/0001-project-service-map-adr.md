@@ -1,4 +1,4 @@
-# ADR 0001: Project Service Map 과 EdgeStack 모델
+# ADR 0001: Project Service Map 과 Edge-Stack System 모델
 
 ## 상태
 
@@ -45,15 +45,20 @@ Overview 구성:
 - `Ownership`
 - `Project Components`
 
-### 2. 공유 인그레스/런타임 경계는 `EdgeStack` 커스텀 kind로 모델링한다
+### 2. 공유 인그레스/런타임 경계는 `System + x-edgestack` 확장으로 모델링한다
 
 `ALB`, `Envoy on ECS`를 단순 `Resource` 나열로만 두면 “공개형 edge stack”이라는 운영 의미가 약하다.
 
-따라서 운영 경계 자체를 나타내는 커스텀 kind 를 사용한다.
+따라서 운영 경계 자체를 나타내는 `System` 확장을 사용한다.
 
 ```yaml
-apiVersion: kabang.cloud/v1
-kind: EdgeStack
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  annotations:
+    kabang.cloud/system-role: edge-stack
+spec:
+  x-edgestack: {}
 ```
 
 의미:
@@ -79,9 +84,9 @@ kind: EdgeStack
 의미:
 
 - `Project -> hasPart -> Component`
-- `Project -> hasPart -> EdgeStack`
-- `EdgeStack -> hasPart -> Resource`
-- `EdgeStack -> routesTrafficTo -> Component`
+- `Project -> hasPart -> System(edge-stack)`
+- `System(edge-stack) -> hasPart -> Resource`
+- `System(edge-stack) -> routesTrafficTo -> Component`
 
 즉, 프로젝트 멤버십과 트래픽 방향을 분리한다.
 
@@ -145,7 +150,7 @@ entity 링크는 새 탭으로 열리고 외부 링크 아이콘을 가진다.
 
 중간 우선순위 후보:
 
-4. `EdgeStack` attachment category 정형화
+4. `edge-stack system` attachment category 정형화
 5. 선택 노드용 view model 도입
 6. `Inventory` 컬럼 정의 분리
 

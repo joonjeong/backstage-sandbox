@@ -14,7 +14,7 @@
 
 비범위:
 
-- `Project`, `EdgeStack` 엔티티 정의
+- `Project` domain, `System + x-edgestack` 확장 정의
 - catalog relation 생성
 - backend processor 로직
 
@@ -68,7 +68,7 @@ import { ProjectServiceMap } from '@internal/plugin-service-map';
 
 - 서비스 맵 노드/엣지/zone 뷰 모델 생성
 - project membership 판정
-- `EdgeStack` detail/resource 정규화
+- `edge-stack system` detail/resource 정규화
 - public ingress domain-record metadata 정규화
 - static web component `spec.runtimeResources` 정규화
 
@@ -77,7 +77,7 @@ import { ProjectServiceMap } from '@internal/plugin-service-map';
 1. app-level container가 현재 entity context에서 `Project`를 읽는다.
 2. app-level container가 catalog에서 다음 엔티티를 조회한다.
    - `Component`
-   - `EdgeStack`
+   - `System` with `metadata.annotations.kabang.cloud/system-role=edge-stack`
 3. `belongsToProject` 규칙으로 현재 프로젝트에 속한 엔티티만 선별한다.
 4. `buildProjectServiceMapModel`이 UI용 모델을 만든다.
 5. `ProjectServiceMap`이 React Flow로 최종 노드/엣지를 렌더링한다.
@@ -96,7 +96,7 @@ import { ProjectServiceMap } from '@internal/plugin-service-map';
 
 - `InfoCard` 기반
 - 기본 메타데이터 표시
-- ingress, edge stack, component 공통으로 topology metadata 표시
+- ingress, edge-stack system, component 공통으로 topology metadata 표시
 - 새 탭으로 열리는 entity 링크 제공
 - `Owned Resources` 다이어그램 제공
 
@@ -150,4 +150,4 @@ plugin 패키지 문서에는 다음만 둔다.
 
 - ADR
 - 도메인 모델
-- `EdgeStack` 스키마
+- `System + x-edgestack` 스키마

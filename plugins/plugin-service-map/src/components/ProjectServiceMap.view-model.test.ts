@@ -18,18 +18,25 @@ describe('ProjectServiceMap view model helpers', () => {
     } as Entity;
 
     const edgeStack = {
-      apiVersion: 'kabang.cloud/v1',
-      kind: 'EdgeStack',
+      apiVersion: 'backstage.io/v1alpha1',
+      kind: 'System',
       metadata: {
         namespace: 'default',
         name: 'public-web-entry-prod',
         annotations: {
           'kabang.cloud/project': 'domain:default/guest-portal',
+          'kabang.cloud/system-role': 'edge-stack',
         },
       },
       spec: {
-        network: {
-          ingressSubnet: 'public',
+        owner: 'group:default/platform',
+        type: 'edge-stack',
+        'x-edgestack': {
+          team: 'group:default/platform',
+          pattern: 'tls-mtls-gateway',
+          network: {
+            ingressSubnet: 'public',
+          },
         },
       },
       relations: [
@@ -58,7 +65,7 @@ describe('ProjectServiceMap view model helpers', () => {
     const model = buildProjectServiceMapModel(project, [edgeStack, web]);
 
     expect(getDefaultSelectedNodeId(model)).toBe(
-      'edgestack:default/public-web-entry-prod',
+      'system:default/public-web-entry-prod',
     );
   });
 

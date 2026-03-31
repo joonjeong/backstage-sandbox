@@ -2,6 +2,53 @@ import type { Entity } from '@backstage/catalog-model';
 import { buildFlow } from './ProjectServiceMap';
 import { buildProjectServiceMapModel } from './ProjectServiceMap.model';
 
+function createEdgeSystem({
+  name,
+  title,
+  projectRef,
+  pattern = 'tls-mtls-gateway',
+  network,
+  attachments,
+  hops,
+  relations,
+}: {
+  name: string;
+  title?: string;
+  projectRef?: string;
+  pattern?: string;
+  network?: Record<string, unknown>;
+  attachments?: Array<Record<string, unknown>>;
+  hops?: Array<Record<string, unknown>>;
+  relations?: Array<Record<string, unknown>>;
+}): Entity {
+  return {
+    apiVersion: 'backstage.io/v1alpha1',
+    kind: 'System',
+    metadata: {
+      namespace: 'default',
+      name,
+      ...(title ? { title } : {}),
+      annotations: {
+        'kabang.cloud/system-role': 'edge-stack',
+        ...(projectRef ? { 'kabang.cloud/project': projectRef } : {}),
+      },
+    },
+    spec: {
+      owner: 'group:default/platform',
+      type: 'edge-stack',
+      lifecycle: 'production',
+      'x-edgestack': {
+        team: 'group:default/platform',
+        pattern,
+        ...(network ? { network } : {}),
+        ...(attachments ? { attachments } : {}),
+        ...(hops ? { hops } : {}),
+      },
+    },
+    relations: relations as Entity['relations'],
+  } as Entity;
+}
+
 describe('buildProjectServiceMapModel', () => {
   it('builds public ingress and service traffic edges from catalog data', () => {
     const project = {
@@ -109,20 +156,27 @@ describe('buildProjectServiceMapModel', () => {
     } as Entity;
 
     const edgeStack = {
-      apiVersion: 'kabang.cloud/v1',
-      kind: 'EdgeStack',
+      apiVersion: 'backstage.io/v1alpha1',
+      kind: 'System',
       metadata: {
         namespace: 'default',
         name: 'public-web-entry-prod',
         title: 'TLS/mTLS Gateway',
         annotations: {
           'kabang.cloud/project': 'domain:default/guest-portal',
+          'kabang.cloud/system-role': 'edge-stack',
         },
       },
       spec: {
-        pattern: 'tls-mtls-gateway',
-        network: {
-          ingressSubnet: 'public',
+        owner: 'group:default/platform',
+        type: 'edge-stack',
+        lifecycle: 'production',
+        'x-edgestack': {
+          team: 'group:default/platform',
+          pattern: 'tls-mtls-gateway',
+          network: {
+            ingressSubnet: 'public',
+          },
         },
       },
       relations: [
@@ -155,7 +209,7 @@ describe('buildProjectServiceMapModel', () => {
     expect(model.nodes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: 'edgestack:default/public-web-entry-prod',
+          id: 'system:default/public-web-entry-prod',
           zone: 'public',
         }),
       ]),
@@ -165,11 +219,11 @@ describe('buildProjectServiceMapModel', () => {
       expect.arrayContaining([
         expect.objectContaining({
           source: 'public-traffic',
-          target: 'edgestack:default/public-web-entry-prod',
+          target: 'system:default/public-web-entry-prod',
           label: 'ingress',
         }),
         expect.objectContaining({
-          source: 'edgestack:default/public-web-entry-prod',
+          source: 'system:default/public-web-entry-prod',
           target: 'component:default/guest-portal-web',
           label: 'routes traffic',
         }),
@@ -192,26 +246,19 @@ describe('buildProjectServiceMapModel', () => {
       },
     } as Entity;
 
-    const edgeStack = {
-      apiVersion: 'kabang.cloud/v1',
-      kind: 'EdgeStack',
-      metadata: {
-        namespace: 'default',
-        name: 'shared-public-web-entry',
-        title: 'TLS/mTLS Gateway',
+    const edgeStack = createEdgeSystem({
+      name: 'shared-public-web-entry',
+      title: 'TLS/mTLS Gateway',
+      pattern: 'tls-mtls-gateway',
+      network: {
+        ingressSubnet: 'public',
       },
-      spec: {
-        pattern: 'tls-mtls-gateway',
-        network: {
-          ingressSubnet: 'public',
+      attachments: [
+        {
+          kind: 'Route53',
+          entityRef: 'resource:default/public-hosted-zone',
         },
-        attachments: [
-          {
-            kind: 'Route53',
-            entityRef: 'resource:default/public-hosted-zone',
-          },
-        ],
-      },
+      ],
       relations: [
         {
           type: 'partOf',
@@ -222,7 +269,7 @@ describe('buildProjectServiceMapModel', () => {
           targetRef: 'component:default/guest-portal-web',
         },
       ],
-    } as Entity;
+    });
 
     const web = {
       apiVersion: 'backstage.io/v1alpha1',
@@ -244,7 +291,7 @@ describe('buildProjectServiceMapModel', () => {
     const model = buildProjectServiceMapModel(project, [edgeStack, web]);
     const ingressNode = model.nodes.find(node => node.id === 'public-traffic');
     const edgeStackNode = model.nodes.find(
-      node => node.id === 'edgestack:default/shared-public-web-entry',
+      node => node.id === 'system:default/shared-public-web-entry',
     );
 
     expect(ingressNode).toBeDefined();
@@ -448,27 +495,20 @@ describe('buildProjectServiceMapModel', () => {
       },
     } as Entity;
 
-    const gateway = {
-      apiVersion: 'kabang.cloud/v1',
-      kind: 'EdgeStack',
-      metadata: {
-        namespace: 'default',
-        name: 'app-webview-tls-mtls-gateway',
-        title: 'TLS/mTLS Gateway',
+    const gateway = createEdgeSystem({
+      name: 'app-webview-tls-mtls-gateway',
+      title: 'TLS/mTLS Gateway',
+      pattern: 'tls-mtls-gateway',
+      network: {
+        ingressSubnet: 'public',
+        upstreamSubnet: 'k8s',
       },
-      spec: {
-        pattern: 'tls-mtls-gateway',
-        network: {
-          ingressSubnet: 'public',
-          upstreamSubnet: 'k8s',
+      attachments: [
+        {
+          kind: 'Route53',
+          entityRef: 'resource:default/public-hosted-zone',
         },
-        attachments: [
-          {
-            kind: 'Route53',
-            entityRef: 'resource:default/public-hosted-zone',
-          },
-        ],
-      },
+      ],
       relations: [
         {
           type: 'partOf',
@@ -476,25 +516,18 @@ describe('buildProjectServiceMapModel', () => {
         },
         {
           type: 'routesTrafficTo',
-          targetRef: 'edgestack:default/app-webview-k8s-ingress',
+          targetRef: 'system:default/app-webview-k8s-ingress',
         },
       ],
-    } as Entity;
+    });
 
-    const k8sIngress = {
-      apiVersion: 'kabang.cloud/v1',
-      kind: 'EdgeStack',
-      metadata: {
-        namespace: 'default',
-        name: 'app-webview-k8s-ingress',
-        title: 'K8s Ingress Tier',
-      },
-      spec: {
-        pattern: 'k8s-ingress',
-        network: {
-          ingressSubnet: 'k8s',
-          upstreamSubnet: 'k8s',
-        },
+    const k8sIngress = createEdgeSystem({
+      name: 'app-webview-k8s-ingress',
+      title: 'K8s Ingress Tier',
+      pattern: 'k8s-ingress',
+      network: {
+        ingressSubnet: 'k8s',
+        upstreamSubnet: 'k8s',
       },
       relations: [
         {
@@ -506,7 +539,7 @@ describe('buildProjectServiceMapModel', () => {
           targetRef: 'component:default/app-webview-workload',
         },
       ],
-    } as Entity;
+    });
 
     const staticWebView = {
       apiVersion: 'backstage.io/v1alpha1',
@@ -641,16 +674,16 @@ describe('buildProjectServiceMapModel', () => {
         }),
         expect.objectContaining({
           source: 'public-traffic',
-          target: 'edgestack:default/app-webview-tls-mtls-gateway',
+          target: 'system:default/app-webview-tls-mtls-gateway',
           label: 'ingress',
         }),
         expect.objectContaining({
-          source: 'edgestack:default/app-webview-tls-mtls-gateway',
-          target: 'edgestack:default/app-webview-k8s-ingress',
+          source: 'system:default/app-webview-tls-mtls-gateway',
+          target: 'system:default/app-webview-k8s-ingress',
           label: 'routes traffic',
         }),
         expect.objectContaining({
-          source: 'edgestack:default/app-webview-k8s-ingress',
+          source: 'system:default/app-webview-k8s-ingress',
           target: 'component:default/app-webview-workload',
           label: 'routes traffic',
         }),
@@ -761,19 +794,11 @@ describe('buildProjectServiceMapModel', () => {
       relations: [],
     } as Entity;
 
-    const ingressToApp = {
-      apiVersion: 'kabang.cloud/v1',
-      kind: 'EdgeStack',
-      metadata: {
-        namespace: 'default',
-        name: 'app-gateway',
-      },
-      spec: {
-        pattern: 'tls-mtls-gateway',
-        network: {
-          ingressSubnet: 'public',
-          upstreamSubnet: 'app',
-        },
+    const ingressToApp = createEdgeSystem({
+      name: 'app-gateway',
+      network: {
+        ingressSubnet: 'public',
+        upstreamSubnet: 'app',
       },
       relations: [
         {
@@ -781,21 +806,13 @@ describe('buildProjectServiceMapModel', () => {
           targetRef: 'component:default/app-workload',
         },
       ],
-    } as Entity;
+    });
 
-    const ingressToK8s = {
-      apiVersion: 'kabang.cloud/v1',
-      kind: 'EdgeStack',
-      metadata: {
-        namespace: 'default',
-        name: 'k8s-gateway',
-      },
-      spec: {
-        pattern: 'tls-mtls-gateway',
-        network: {
-          ingressSubnet: 'public',
-          upstreamSubnet: 'k8s',
-        },
+    const ingressToK8s = createEdgeSystem({
+      name: 'k8s-gateway',
+      network: {
+        ingressSubnet: 'public',
+        upstreamSubnet: 'k8s',
       },
       relations: [
         {
@@ -803,7 +820,7 @@ describe('buildProjectServiceMapModel', () => {
           targetRef: 'component:default/k8s-workload',
         },
       ],
-    } as Entity;
+    });
 
     const intra = {
       apiVersion: 'backstage.io/v1alpha1',
@@ -854,19 +871,11 @@ describe('buildProjectServiceMapModel', () => {
       },
     } as Entity;
 
-    const sharedEdgeStack = {
-      apiVersion: 'kabang.cloud/v1',
-      kind: 'EdgeStack',
-      metadata: {
-        namespace: 'default',
-        name: 'shared-public-web-entry',
-        title: 'TLS/mTLS Gateway',
-      },
-      spec: {
-        pattern: 'tls-mtls-gateway',
-        network: {
-          ingressSubnet: 'public',
-        },
+    const sharedEdgeStack = createEdgeSystem({
+      name: 'shared-public-web-entry',
+      title: 'TLS/mTLS Gateway',
+      network: {
+        ingressSubnet: 'public',
       },
       relations: [
         {
@@ -882,7 +891,7 @@ describe('buildProjectServiceMapModel', () => {
           targetRef: 'component:default/guest-ops-console-ui',
         },
       ],
-    } as Entity;
+    });
 
     const web = {
       apiVersion: 'backstage.io/v1alpha1',
@@ -906,7 +915,7 @@ describe('buildProjectServiceMapModel', () => {
     expect(model.edges).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          source: 'edgestack:default/shared-public-web-entry',
+          source: 'system:default/shared-public-web-entry',
           target: 'component:default/guest-portal-web',
         }),
       ]),

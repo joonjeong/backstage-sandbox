@@ -22,8 +22,12 @@ import type {
 } from '@backstage/plugin-catalog-node';
 import { processingResult } from '@backstage/plugin-catalog-node';
 import {
-  EDGE_STACK_KIND,
+  EDGE_STACK_EXTENSION_KEY,
   EDGE_STACK_PROJECT_ANNOTATION,
+  EDGE_STACK_SYSTEM_API_VERSION,
+  EDGE_STACK_SYSTEM_KIND,
+  EDGE_STACK_SYSTEM_ROLE,
+  EDGE_STACK_SYSTEM_ROLE_ANNOTATION,
   PROJECT_DOMAIN_API_VERSION,
   PROJECT_DOMAIN_KIND,
   PROJECT_DOMAIN_ROLE,
@@ -31,10 +35,12 @@ import {
   PROJECT_COMPONENT_ANNOTATION,
   RELATION_RECEIVES_TRAFFIC_FROM,
   RELATION_ROUTES_TRAFFIC_TO,
+  type EdgeStackExtension,
   type EdgeStackLinkedEntity,
-  type EdgeStackEntity,
+  type EdgeStackSystemEntity,
   type ProjectAwareComponentEntity,
   type ProjectDomainEntity,
+  isEdgeStackSystemEntity,
   isProjectDomainEntity,
 } from './types';
 
@@ -88,118 +94,153 @@ const projectDomainEntityValidator =
     },
   });
 
-const edgeStackEntityValidator = entityKindSchemaValidator<EdgeStackEntity>({
-  type: 'object',
-  required: ['apiVersion', 'kind', 'metadata', 'spec'],
-  properties: {
-    apiVersion: {
-      enum: ['kabang.cloud/v1'],
-    },
-    kind: {
-      enum: [EDGE_STACK_KIND],
-    },
-    metadata: {
-      $ref: 'EntityMeta',
-    },
-    spec: {
-      type: 'object',
-      required: ['owner', 'team', 'pattern'],
-      properties: {
-        owner: {
-          type: 'string',
-        },
-        team: {
-          type: 'string',
-        },
-        pattern: {
-          type: 'string',
-        },
-        shared: {
-          type: 'boolean',
-        },
-        projects: {
-          type: 'array',
-          items: {
+const edgeStackEntityValidator =
+  entityKindSchemaValidator<EdgeStackSystemEntity>({
+    type: 'object',
+    required: ['apiVersion', 'kind', 'metadata', 'spec'],
+    properties: {
+      apiVersion: {
+        enum: [EDGE_STACK_SYSTEM_API_VERSION],
+      },
+      kind: {
+        enum: [EDGE_STACK_SYSTEM_KIND],
+      },
+      metadata: {
+        allOf: [
+          {
+            $ref: 'EntityMeta',
+          },
+          {
+            type: 'object',
+            required: ['annotations'],
+            properties: {
+              annotations: {
+                type: 'object',
+                required: [EDGE_STACK_SYSTEM_ROLE_ANNOTATION],
+                properties: {
+                  [EDGE_STACK_SYSTEM_ROLE_ANNOTATION]: {
+                    enum: [EDGE_STACK_SYSTEM_ROLE],
+                  },
+                },
+                additionalProperties: true,
+              },
+            },
+          },
+        ],
+      },
+      spec: {
+        type: 'object',
+        required: ['owner', EDGE_STACK_EXTENSION_KEY],
+        properties: {
+          owner: {
             type: 'string',
           },
-        },
-        exposure: {
-          type: 'object',
-          additionalProperties: true,
-        },
-        network: {
-          type: 'object',
-          additionalProperties: true,
-        },
-        routing: {
-          type: 'object',
-          additionalProperties: true,
-        },
-        hops: {
-          type: 'array',
-          items: {
+          type: {
+            type: 'string',
+          },
+          lifecycle: {
+            type: 'string',
+          },
+          domain: {
+            type: 'string',
+          },
+          [EDGE_STACK_EXTENSION_KEY]: {
             type: 'object',
-            required: ['role', 'kind', 'entityRef'],
+            required: ['team', 'pattern'],
             properties: {
-              role: {
+              team: {
                 type: 'string',
               },
-              kind: {
+              pattern: {
                 type: 'string',
               },
-              entityRef: {
-                type: 'string',
+              shared: {
+                type: 'boolean',
+              },
+              projects: {
+                type: 'array',
+                items: {
+                  type: 'string',
+                },
+              },
+              exposure: {
+                type: 'object',
+                additionalProperties: true,
+              },
+              network: {
+                type: 'object',
+                additionalProperties: true,
+              },
+              routing: {
+                type: 'object',
+                additionalProperties: true,
+              },
+              hops: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  required: ['role', 'kind', 'entityRef'],
+                  properties: {
+                    role: {
+                      type: 'string',
+                    },
+                    kind: {
+                      type: 'string',
+                    },
+                    entityRef: {
+                      type: 'string',
+                    },
+                  },
+                  additionalProperties: true,
+                },
+              },
+              attachments: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  required: ['role', 'kind', 'entityRef'],
+                  properties: {
+                    role: {
+                      type: 'string',
+                    },
+                    kind: {
+                      type: 'string',
+                    },
+                    entityRef: {
+                      type: 'string',
+                    },
+                  },
+                  additionalProperties: true,
+                },
+              },
+              targets: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  required: ['entityRef'],
+                  properties: {
+                    entityRef: {
+                      type: 'string',
+                    },
+                    trafficType: {
+                      type: 'string',
+                    },
+                  },
+                  additionalProperties: true,
+                },
+              },
+              providers: {
+                type: 'object',
+                additionalProperties: true,
               },
             },
             additionalProperties: true,
           },
         },
-        attachments: {
-          type: 'array',
-          items: {
-            type: 'object',
-            required: ['role', 'kind', 'entityRef'],
-            properties: {
-              role: {
-                type: 'string',
-              },
-              kind: {
-                type: 'string',
-              },
-              entityRef: {
-                type: 'string',
-              },
-            },
-            additionalProperties: true,
-          },
-        },
-        targets: {
-          type: 'array',
-          items: {
-            type: 'object',
-            required: ['entityRef'],
-            properties: {
-              entityRef: {
-                type: 'string',
-              },
-              trafficType: {
-                type: 'string',
-              },
-            },
-            additionalProperties: true,
-          },
-        },
+        additionalProperties: true,
       },
-      additionalProperties: true,
     },
-  },
-});
-
-function isEdgeStackEntity(entity: Entity): entity is EdgeStackEntity {
-  return (
-    entity.apiVersion === 'kabang.cloud/v1' && entity.kind === EDGE_STACK_KIND
-  );
-}
+  });
 
 function isProjectAwareComponentEntity(
   entity: Entity,
@@ -233,6 +274,39 @@ function normalizeProjectDomainRef(ref: string, entity: Entity): string {
         ? PROJECT_DOMAIN_KIND
         : parsedRef.kind,
   });
+}
+
+function normalizeEdgeStackExtension(
+  edgeStack: EdgeStackExtension,
+  entity: Entity,
+): EdgeStackExtension {
+  const projects = edgeStack.projects?.length
+    ? edgeStack.projects
+    : entity.metadata.annotations?.[EDGE_STACK_PROJECT_ANNOTATION]?.split(',')
+        .map(projectRef => projectRef.trim())
+        .filter(Boolean) ?? [];
+
+  return {
+    ...edgeStack,
+    team: normalizeRef(edgeStack.team, entity, 'Group'),
+    projects: projects.map(projectRef =>
+      normalizeProjectDomainRef(projectRef, entity),
+    ),
+    network: edgeStack.network
+      ? {
+          ...edgeStack.network,
+          vpcRef: edgeStack.network.vpcRef
+            ? normalizeRef(edgeStack.network.vpcRef, entity, 'Resource')
+            : undefined,
+        }
+      : edgeStack.network,
+    hops: normalizeLinkedEntities(edgeStack.hops, entity),
+    attachments: normalizeLinkedEntities(edgeStack.attachments, entity),
+    targets: edgeStack.targets?.map(target => ({
+      ...target,
+      entityRef: normalizeRef(target.entityRef, entity, 'Component'),
+    })),
+  };
 }
 
 function emitOwnershipRelations(
@@ -320,7 +394,7 @@ export class ProjectDomainProcessor implements CatalogProcessor {
       return projectDomainEntityValidator(entity) !== false;
     }
 
-    if (isEdgeStackEntity(entity)) {
+    if (isEdgeStackSystemEntity(entity)) {
       return edgeStackEntityValidator(entity) !== false;
     }
 
@@ -345,50 +419,27 @@ export class ProjectDomainProcessor implements CatalogProcessor {
       };
     }
 
-    if (isEdgeStackEntity(entity)) {
-      const projects = entity.spec.projects?.length
-        ? entity.spec.projects
-        : entity.metadata.annotations?.[EDGE_STACK_PROJECT_ANNOTATION]?.split(
-            ',',
-          )
-            .map(projectRef => projectRef.trim())
-            .filter(Boolean) ?? [];
+    if (isEdgeStackSystemEntity(entity)) {
+      const normalizedEdgeStack = normalizeEdgeStackExtension(
+        entity.spec[EDGE_STACK_EXTENSION_KEY],
+        entity,
+      );
+      const projects = normalizedEdgeStack.projects ?? [];
 
       return {
         ...entity,
         spec: {
           ...entity.spec,
-          owner: normalizeRef(entity.spec.owner, entity, 'User'),
-          team: normalizeRef(entity.spec.team, entity, 'Group'),
-          projects: projects.map(projectRef =>
-            normalizeProjectDomainRef(projectRef, entity),
-          ),
-          network: entity.spec.network
-            ? {
-                ...entity.spec.network,
-                vpcRef: entity.spec.network.vpcRef
-                  ? normalizeRef(entity.spec.network.vpcRef, entity, 'Resource')
-                  : undefined,
-              }
-            : entity.spec.network,
-          hops: normalizeLinkedEntities(entity.spec.hops, entity),
-          attachments: normalizeLinkedEntities(entity.spec.attachments, entity),
-          targets: entity.spec.targets?.map(target => ({
-            ...target,
-            entityRef: normalizeRef(target.entityRef, entity, 'Component'),
-          })),
-        },
+          owner: normalizeRef(entity.spec.owner, entity, 'Group'),
+          [EDGE_STACK_EXTENSION_KEY]: normalizedEdgeStack,
+        } as Entity['spec'],
         metadata: {
           ...entity.metadata,
           annotations: {
             ...entity.metadata.annotations,
             ...(projects.length > 0
               ? {
-                  [EDGE_STACK_PROJECT_ANNOTATION]: projects
-                    .map(projectRef =>
-                      normalizeProjectDomainRef(projectRef, entity),
-                    )
-                    .join(','),
+                  [EDGE_STACK_PROJECT_ANNOTATION]: projects.join(','),
                 }
               : {}),
           },
@@ -452,13 +503,14 @@ export class ProjectDomainProcessor implements CatalogProcessor {
       return entity;
     }
 
-    if (isEdgeStackEntity(entity)) {
+    if (isEdgeStackSystemEntity(entity)) {
       const source = getCompoundEntityRef(entity);
+      const edgeStack = entity.spec[EDGE_STACK_EXTENSION_KEY];
       const owner = parseEntityRef(entity.spec.owner, {
-        defaultKind: 'User',
+        defaultKind: 'Group',
         defaultNamespace: entity.metadata.namespace,
       });
-      const team = parseEntityRef(entity.spec.team, {
+      const team = parseEntityRef(edgeStack.team, {
         defaultKind: 'Group',
         defaultNamespace: entity.metadata.namespace,
       });
@@ -466,7 +518,7 @@ export class ProjectDomainProcessor implements CatalogProcessor {
       emitOwnershipRelations(emit, source, owner);
       emitOwnershipRelations(emit, source, team);
 
-      for (const projectRef of entity.spec.projects ?? []) {
+      for (const projectRef of edgeStack.projects ?? []) {
         const project = parseEntityRef(projectRef, {
           defaultKind: PROJECT_DOMAIN_KIND,
           defaultNamespace: entity.metadata.namespace,
@@ -475,8 +527,8 @@ export class ProjectDomainProcessor implements CatalogProcessor {
       }
 
       for (const linkedEntity of [
-        ...(entity.spec.attachments ?? []),
-        ...(entity.spec.hops ?? []),
+        ...(edgeStack.attachments ?? []),
+        ...(edgeStack.hops ?? []),
       ]) {
         const target = parseEntityRef(linkedEntity.entityRef, {
           defaultKind: 'Resource',
@@ -485,7 +537,7 @@ export class ProjectDomainProcessor implements CatalogProcessor {
         emitProjectMembershipRelations(emit, target, source);
       }
 
-      for (const targetRef of entity.spec.targets ?? []) {
+      for (const targetRef of edgeStack.targets ?? []) {
         const target = parseEntityRef(targetRef.entityRef, {
           defaultKind: 'Component',
           defaultNamespace: entity.metadata.namespace,
@@ -494,9 +546,9 @@ export class ProjectDomainProcessor implements CatalogProcessor {
       }
 
       this.logger.info(
-        `Processed ${EDGE_STACK_KIND} entity ${stringifyEntityRef(
-          entity,
-        )} with ${entity.spec.targets?.length ?? 0} traffic targets`,
+        `Processed edge stack ${stringifyEntityRef(entity)} with ${
+          edgeStack.targets?.length ?? 0
+        } traffic targets`,
       );
 
       return entity;

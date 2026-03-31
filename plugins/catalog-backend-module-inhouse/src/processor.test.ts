@@ -9,6 +9,9 @@ import {
   PROJECT_COMPONENT_ANNOTATION,
   PROJECT_DOMAIN_ROLE,
   PROJECT_DOMAIN_ROLE_ANNOTATION,
+  EDGE_STACK_EXTENSION_KEY,
+  EDGE_STACK_SYSTEM_ROLE,
+  EDGE_STACK_SYSTEM_ROLE_ANNOTATION,
   RELATION_RECEIVES_TRAFFIC_FROM,
   RELATION_ROUTES_TRAFFIC_TO,
 } from './types';
@@ -261,36 +264,41 @@ describe('ProjectDomainProcessor', () => {
 
     const processed = await processor.preProcessEntity(
       {
-        apiVersion: 'kabang.cloud/v1',
-        kind: 'EdgeStack',
+        apiVersion: 'backstage.io/v1alpha1',
+        kind: 'System',
         metadata: {
           name: 'public-web-entry-prod',
+          annotations: {
+            [EDGE_STACK_SYSTEM_ROLE_ANNOTATION]: EDGE_STACK_SYSTEM_ROLE,
+          },
         },
         spec: {
           owner: 'alice',
-          team: 'platform',
-          pattern: 'public-web-entry',
-          projects: ['project:default/guest-portal'],
-          attachments: [
-            {
-              role: 'shield',
-              kind: 'waf',
-              entityRef: 'shared-waf',
-            },
-          ],
-          hops: [
-            {
-              role: 'ingress',
-              kind: 'alb',
-              entityRef: 'public-alb',
-            },
-          ],
-          targets: [
-            {
-              entityRef: 'guest-portal-web',
-              trafficType: 'http',
-            },
-          ],
+          [EDGE_STACK_EXTENSION_KEY]: {
+            team: 'platform',
+            pattern: 'public-web-entry',
+            projects: ['project:default/guest-portal'],
+            attachments: [
+              {
+                role: 'shield',
+                kind: 'waf',
+                entityRef: 'shared-waf',
+              },
+            ],
+            hops: [
+              {
+                role: 'ingress',
+                kind: 'alb',
+                entityRef: 'public-alb',
+              },
+            ],
+            targets: [
+              {
+                entityRef: 'guest-portal-web',
+                trafficType: 'http',
+              },
+            ],
+          },
         },
       } as any,
       { type: 'file', target: '/tmp/edge-stack.yaml' },
@@ -302,24 +310,26 @@ describe('ProjectDomainProcessor', () => {
     expect(processed).toEqual(
       expect.objectContaining({
         spec: expect.objectContaining({
-          owner: 'user:default/alice',
-          team: 'group:default/platform',
-          projects: ['domain:default/guest-portal'],
-          attachments: [
-            expect.objectContaining({
-              entityRef: 'resource:default/shared-waf',
-            }),
-          ],
-          hops: [
-            expect.objectContaining({
-              entityRef: 'resource:default/public-alb',
-            }),
-          ],
-          targets: [
-            expect.objectContaining({
-              entityRef: 'component:default/guest-portal-web',
-            }),
-          ],
+          owner: 'group:default/alice',
+          [EDGE_STACK_EXTENSION_KEY]: expect.objectContaining({
+            team: 'group:default/platform',
+            projects: ['domain:default/guest-portal'],
+            attachments: [
+              expect.objectContaining({
+                entityRef: 'resource:default/shared-waf',
+              }),
+            ],
+            hops: [
+              expect.objectContaining({
+                entityRef: 'resource:default/public-alb',
+              }),
+            ],
+            targets: [
+              expect.objectContaining({
+                entityRef: 'component:default/guest-portal-web',
+              }),
+            ],
+          }),
         }),
       }),
     );
@@ -342,42 +352,42 @@ describe('ProjectDomainProcessor', () => {
         {
           type: RELATION_PART_OF,
           source: 'resource:default/shared-waf',
-          target: 'edgestack:default/public-web-entry-prod',
+          target: 'system:default/public-web-entry-prod',
         },
         {
           type: RELATION_HAS_PART,
-          source: 'edgestack:default/public-web-entry-prod',
+          source: 'system:default/public-web-entry-prod',
           target: 'resource:default/shared-waf',
         },
         {
           type: RELATION_PART_OF,
-          source: 'edgestack:default/public-web-entry-prod',
+          source: 'system:default/public-web-entry-prod',
           target: 'domain:default/guest-portal',
         },
         {
           type: RELATION_HAS_PART,
           source: 'domain:default/guest-portal',
-          target: 'edgestack:default/public-web-entry-prod',
+          target: 'system:default/public-web-entry-prod',
         },
         {
           type: RELATION_PART_OF,
           source: 'resource:default/public-alb',
-          target: 'edgestack:default/public-web-entry-prod',
+          target: 'system:default/public-web-entry-prod',
         },
         {
           type: RELATION_HAS_PART,
-          source: 'edgestack:default/public-web-entry-prod',
+          source: 'system:default/public-web-entry-prod',
           target: 'resource:default/public-alb',
         },
         {
           type: RELATION_ROUTES_TRAFFIC_TO,
-          source: 'edgestack:default/public-web-entry-prod',
+          source: 'system:default/public-web-entry-prod',
           target: 'component:default/guest-portal-web',
         },
         {
           type: RELATION_RECEIVES_TRAFFIC_FROM,
           source: 'component:default/guest-portal-web',
-          target: 'edgestack:default/public-web-entry-prod',
+          target: 'system:default/public-web-entry-prod',
         },
       ]),
     );

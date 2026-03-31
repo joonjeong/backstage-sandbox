@@ -127,128 +127,143 @@ spec:
   owner: guests
   system: examples
 ---
-apiVersion: kabang.cloud/v1
-kind: EdgeStack
+apiVersion: backstage.io/v1alpha1
+kind: System
 metadata:
   name: shared-public-web-entry
   title: TLS/mTLS Gateway
   description: Shared public ALB to Envoy gateway for TLS and mTLS protected API traffic.
+  annotations:
+    kabang.cloud/system-role: edge-stack
 spec:
   owner: guests
-  team: guests
-  pattern: tls-mtls-gateway
-  shared: true
-  projects:
-    - guest-portal
-    - guest-ops-console
-  exposure:
-    ingress: public
-    upstream: private
-  network:
-    ingressSubnet: public
-    upstreamSubnet: private
-    region: ap-northeast-2
-    environment: production
-  routing:
-    mode: host-path
-    protocol: http
-    tlsTerminationAt: alb
-  attachments:
-    - role: dns
-      kind: route53
-      entityRef: resource:default/public-hosted-zone
-    - role: shield
-      kind: waf
-      entityRef: resource:default/edge-waf
-  hops:
-    - role: ingress
-      kind: alb
-      entityRef: resource:default/public-alb
-    - role: proxy
-      kind: envoy-on-ecs
-      entityRef: resource:default/envoy-on-ecs
-  targets:
-    - entityRef: component:default/guest-portal-api
-      trafficType: http
-    - entityRef: component:default/guest-ops-console-api
-      trafficType: http
+  type: edge-stack
+  lifecycle: production
+  x-edgestack:
+    team: guests
+    pattern: tls-mtls-gateway
+    shared: true
+    projects:
+      - guest-portal
+      - guest-ops-console
+    exposure:
+      ingress: public
+      upstream: private
+    network:
+      ingressSubnet: public
+      upstreamSubnet: private
+      region: ap-northeast-2
+      environment: production
+    routing:
+      mode: host-path
+      protocol: http
+      tlsTerminationAt: alb
+    attachments:
+      - role: dns
+        kind: route53
+        entityRef: resource:default/public-hosted-zone
+      - role: shield
+        kind: waf
+        entityRef: resource:default/edge-waf
+    hops:
+      - role: ingress
+        kind: alb
+        entityRef: resource:default/public-alb
+      - role: proxy
+        kind: envoy-on-ecs
+        entityRef: resource:default/envoy-on-ecs
+    targets:
+      - entityRef: component:default/guest-portal-api
+        trafficType: http
+      - entityRef: component:default/guest-ops-console-api
+        trafficType: http
 ---
-apiVersion: kabang.cloud/v1
-kind: EdgeStack
+apiVersion: backstage.io/v1alpha1
+kind: System
 metadata:
   name: app-webview-tls-mtls-gateway
   title: TLS/mTLS Gateway
   description: Public gateway for app-webview using ALB and Envoy before handing off to the Kubernetes ingress tier.
+  annotations:
+    kabang.cloud/system-role: edge-stack
 spec:
   owner: guests
-  team: guests
-  pattern: tls-mtls-gateway
-  projects:
-    - app-webview
-  exposure:
-    ingress: public
-    upstream: private
-  network:
-    ingressSubnet: public
-    upstreamSubnet: k8s
-    region: ap-northeast-2
-    environment: production
-  routing:
-    mode: host-path
-    protocol: https
-    tlsTerminationAt: alb
-  attachments:
-    - role: dns
-      kind: route53
-      entityRef: resource:default/public-hosted-zone
-    - role: shield
-      kind: waf
-      entityRef: resource:default/edge-waf
-  hops:
-    - role: ingress
-      kind: alb
-      entityRef: resource:default/app-webview-edge-alb
-    - role: proxy
-      kind: envoy-on-ecs
-      entityRef: resource:default/app-webview-edge-envoy
-  targets:
-    - entityRef: edgestack:default/app-webview-k8s-ingress
-      trafficType: https
+  type: edge-stack
+  lifecycle: production
+  x-edgestack:
+    team: guests
+    pattern: tls-mtls-gateway
+    projects:
+      - app-webview
+    exposure:
+      ingress: public
+      upstream: private
+    network:
+      ingressSubnet: public
+      upstreamSubnet: k8s
+      region: ap-northeast-2
+      environment: production
+    routing:
+      mode: host-path
+      protocol: https
+      tlsTerminationAt: alb
+    attachments:
+      - role: dns
+        kind: route53
+        entityRef: resource:default/public-hosted-zone
+      - role: shield
+        kind: waf
+        entityRef: resource:default/edge-waf
+    hops:
+      - role: ingress
+        kind: alb
+        entityRef: resource:default/app-webview-edge-alb
+      - role: proxy
+        kind: envoy-on-ecs
+        entityRef: resource:default/app-webview-edge-envoy
+    targets:
+      - entityRef: system:default/app-webview-k8s-ingress
+        trafficType: https
 ---
-apiVersion: kabang.cloud/v1
-kind: EdgeStack
+apiVersion: backstage.io/v1alpha1
+kind: System
 metadata:
   name: app-webview-k8s-ingress
   title: K8s Ingress Tier
   description: Kubernetes ingress tier using an ALB and Traefik before traffic reaches the workload.
+  annotations:
+    kabang.cloud/system-role: edge-stack
 spec:
   owner: guests
-  team: guests
-  pattern: k8s-ingress
-  projects:
-    - app-webview
-  exposure:
-    ingress: k8s
-    upstream: k8s
-  network:
-    ingressSubnet: k8s
-    upstreamSubnet: k8s
-    region: ap-northeast-2
-    environment: production
-  routing:
-    mode: host-path
-    protocol: https
-    tlsTerminationAt: alb
-  hops:
-    - role: ingress
-      kind: alb
-      entityRef: resource:default/app-webview-k8s-ingress-alb
-    - role: proxy
-      kind: traefik
-      entityRef: resource:default/app-webview-traefik
-  targets:
-    - entityRef: component:default/app-webview-workload
-      trafficType: https
+  type: edge-stack
+  lifecycle: production
+  x-edgestack:
+    team: guests
+    pattern: k8s-ingress
+    projects:
+      - app-webview
+    exposure:
+      ingress: k8s
+      upstream: k8s
+    network:
+      ingressSubnet: k8s
+      upstreamSubnet: k8s
+      region: ap-northeast-2
+      environment: production
+    routing:
+      mode: host-path
+      protocol: https
+      tlsTerminationAt: alb
+    hops:
+      - role: ingress
+        kind: alb
+        entityRef: resource:default/app-webview-k8s-ingress-alb
+      - role: proxy
+        kind: traefik
+        entityRef: resource:default/app-webview-traefik
+    targets:
+      - entityRef: component:default/app-webview-workload
+        trafficType: https
 ---
 # https://backstage.io/docs/features/software-catalog/descriptor-format#kind-component
 apiVersion: backstage.io/v1alpha1

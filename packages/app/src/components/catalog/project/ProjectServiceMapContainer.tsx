@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CircularProgress, Typography } from '@material-ui/core';
+import {
+  Card,
+  CardContent,
+  CircularProgress,
+  Typography,
+} from '@material-ui/core';
 import { useApi } from '@backstage/core-plugin-api';
 import { catalogApiRef, useEntity } from '@backstage/plugin-catalog-react';
 import type { Entity } from '@backstage/catalog-model';
@@ -10,6 +15,9 @@ import {
   getProjectEntitiesForKindFilter,
   type ProjectServiceMapModel,
 } from '@internal/plugin-service-map';
+
+const EDGE_STACK_SYSTEM_ROLE_ANNOTATION = 'kabang.cloud/system-role';
+const EDGE_STACK_SYSTEM_ROLE = 'edge-stack';
 
 export function ProjectServiceMapContainer({
   inventoryOnly = false,
@@ -30,12 +38,19 @@ export function ProjectServiceMapContainer({
       setError(undefined);
 
       try {
-        const [componentResponse, edgeStackResponse] = await Promise.all([
+        const [componentResponse, edgeSystemResponse] = await Promise.all([
           catalogApi.getEntities({
-            filter: getProjectEntitiesForKindFilter(entity as Entity, 'Component'),
+            filter: getProjectEntitiesForKindFilter(
+              entity as Entity,
+              'Component',
+            ),
           }),
           catalogApi.getEntities({
-            filter: { kind: 'EdgeStack' },
+            filter: {
+              kind: 'System',
+              [`metadata.annotations.${EDGE_STACK_SYSTEM_ROLE_ANNOTATION}`]:
+                EDGE_STACK_SYSTEM_ROLE,
+            },
           }),
         ]);
 
@@ -45,7 +60,7 @@ export function ProjectServiceMapContainer({
 
         setModel(
           buildProjectServiceMapModel(entity as Entity, [
-            ...edgeStackResponse.items.filter(candidate =>
+            ...edgeSystemResponse.items.filter(candidate =>
               belongsToProject(candidate, entity as Entity),
             ),
             ...componentResponse.items,
@@ -77,7 +92,14 @@ export function ProjectServiceMapContainer({
 
   if (loading) {
     return (
-      <div style={{ minHeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        style={{
+          minHeight: 700,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         <CircularProgress />
       </div>
     );

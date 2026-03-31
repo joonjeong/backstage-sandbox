@@ -1,16 +1,19 @@
-# EdgeStack 스키마 상세 설계
+# Edge-Stack System 스키마 상세 설계
 
 ## 목적
 
-`EdgeStack`은 공개 또는 내부 트래픽 경계를 대표하는 커스텀 엔티티다.
+`EdgeStack`은 공개 또는 내부 트래픽 경계를 대표하는 `System` 확장 모델이다.
 
-이 문서는 현재 채택된 `EdgeStack` 스키마와 relation 의미, YAML 예시를 정리한다.
+이 문서는 현재 채택된 `System + spec.x-edgestack` 스키마와 relation 의미, YAML 예시를 정리한다.
 
 ## Kind 정의
 
 ```yaml
-apiVersion: kabang.cloud/v1
-kind: EdgeStack
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  annotations:
+    kabang.cloud/system-role: edge-stack
 ```
 
 ## 필드 정의
@@ -24,23 +27,26 @@ kind: EdgeStack
 ### spec
 
 - `owner: string`
-- `team: string`
-- `pattern: string`
-- `shared?: boolean`
-- `projects?: string[]`
-- `exposure.ingress?: public | private`
-- `exposure.upstream?: public | private`
-- `network.ingressSubnet?: public | private`
-- `network.upstreamSubnet?: public | private`
-- `network.region?: string`
-- `network.environment?: string`
-- `network.vpcRef?: string`
-- `routing.mode?: string`
-- `routing.protocol?: string`
-- `routing.tlsTerminationAt?: string`
-- `attachments?: EdgeStackLinkedEntity[]`
-- `hops?: EdgeStackLinkedEntity[]`
-- `targets?: EdgeStackTarget[]`
+- `type?: string`
+- `lifecycle?: string`
+- `domain?: string`
+- `x-edgestack.team: string`
+- `x-edgestack.pattern: string`
+- `x-edgestack.shared?: boolean`
+- `x-edgestack.projects?: string[]`
+- `x-edgestack.exposure.ingress?: public | private`
+- `x-edgestack.exposure.upstream?: public | private`
+- `x-edgestack.network.ingressSubnet?: public | private`
+- `x-edgestack.network.upstreamSubnet?: public | private`
+- `x-edgestack.network.region?: string`
+- `x-edgestack.network.environment?: string`
+- `x-edgestack.network.vpcRef?: string`
+- `x-edgestack.routing.mode?: string`
+- `x-edgestack.routing.protocol?: string`
+- `x-edgestack.routing.tlsTerminationAt?: string`
+- `x-edgestack.attachments?: EdgeStackLinkedEntity[]`
+- `x-edgestack.hops?: EdgeStackLinkedEntity[]`
+- `x-edgestack.targets?: EdgeStackTarget[]`
 
 ### EdgeStackLinkedEntity
 
@@ -89,14 +95,14 @@ trafficType?: string
 - `owner`, `team`
   - `ownedBy`, `ownerOf`
 - `projects[]`
-  - `EdgeStack -> partOf -> Project`
-  - `Project -> hasPart -> EdgeStack`
+  - `System(edge-stack) -> partOf -> Project`
+  - `Project -> hasPart -> System(edge-stack)`
 - `attachments[]`, `hops[]`
-  - `Resource -> partOf -> EdgeStack`
-  - `EdgeStack -> hasPart -> Resource`
+  - `Resource -> partOf -> System(edge-stack)`
+  - `System(edge-stack) -> hasPart -> Resource`
 - `targets[]`
-  - `EdgeStack -> routesTrafficTo -> Component`
-  - `Component -> receivesTrafficFrom -> EdgeStack`
+  - `System(edge-stack) -> routesTrafficTo -> Component`
+  - `Component -> receivesTrafficFrom -> System(edge-stack)`
 
 ## 해석 규칙
 
@@ -110,8 +116,8 @@ trafficType?: string
 
 ### zone 판정
 
-- `spec.network.ingressSubnet`
-- 없으면 `spec.exposure.ingress`
+- `spec.x-edgestack.network.ingressSubnet`
+- 없으면 `spec.x-edgestack.exposure.ingress`
 
 ### Domain Record 메타데이터
 
@@ -131,54 +137,59 @@ WAF 는 현재 별도 서비스맵 노드가 아니다.
 
 ## YAML 예시
 
-### 1. Shared Public EdgeStack
+### 1. Shared Public Edge-Stack System
 
 ```yaml
-apiVersion: kabang.cloud/v1
-kind: EdgeStack
+apiVersion: backstage.io/v1alpha1
+kind: System
 metadata:
   name: shared-public-web-entry
   title: TLS/mTLS Gateway
   description: Shared public ALB to Envoy gateway for TLS and mTLS protected API traffic.
+  annotations:
+    kabang.cloud/system-role: edge-stack
 spec:
   owner: guests
-  team: guests
-  pattern: tls-mtls-gateway
-  shared: true
-  projects:
-    - guest-portal
-    - guest-ops-console
-  exposure:
-    ingress: public
-    upstream: private
-  network:
-    ingressSubnet: public
-    upstreamSubnet: private
-    region: ap-northeast-2
-    environment: production
-  routing:
-    mode: host-path
-    protocol: http
-    tlsTerminationAt: alb
-  attachments:
-    - role: dns
-      kind: route53
-      entityRef: resource:default/public-hosted-zone
-    - role: shield
-      kind: waf
-      entityRef: resource:default/edge-waf
-  hops:
-    - role: ingress
-      kind: alb
-      entityRef: resource:default/public-alb
-    - role: proxy
-      kind: envoy-on-ecs
-      entityRef: resource:default/envoy-on-ecs
-  targets:
-    - entityRef: component:default/guest-portal-api
-      trafficType: http
-    - entityRef: component:default/guest-ops-console-api
-      trafficType: http
+  type: edge-stack
+  lifecycle: production
+  x-edgestack:
+    team: guests
+    pattern: tls-mtls-gateway
+    shared: true
+    projects:
+      - guest-portal
+      - guest-ops-console
+    exposure:
+      ingress: public
+      upstream: private
+    network:
+      ingressSubnet: public
+      upstreamSubnet: private
+      region: ap-northeast-2
+      environment: production
+    routing:
+      mode: host-path
+      protocol: http
+      tlsTerminationAt: alb
+    attachments:
+      - role: dns
+        kind: route53
+        entityRef: resource:default/public-hosted-zone
+      - role: shield
+        kind: waf
+        entityRef: resource:default/edge-waf
+    hops:
+      - role: ingress
+        kind: alb
+        entityRef: resource:default/public-alb
+      - role: proxy
+        kind: envoy-on-ecs
+        entityRef: resource:default/envoy-on-ecs
+    targets:
+      - entityRef: component:default/guest-portal-api
+        trafficType: http
+      - entityRef: component:default/guest-ops-console-api
+        trafficType: http
 ```
 
 ### 2. DNS Resource
