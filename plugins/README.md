@@ -13,10 +13,10 @@ You can also check out existing plugins on [the plugin marketplace](https://back
 This repository keeps team customizations under `plugins/` so they stay clearly
 separated from the stock Backstage app wiring in `packages/backend`.
 
-Current Inhouse CMDB package layout:
+Current team-owned package layout:
 
-- `catalog-backend-module-inhouse`
-  Inhouse catalog backend module
+- `catalog-backend-module-extensions`
+  Catalog backend extensions module
   Includes entity extensions for domain/system/location handling
 
 See each package `README.md` for ownership boundaries and edit guidance.

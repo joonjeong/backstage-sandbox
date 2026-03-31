@@ -1,0 +1,168 @@
+# plugin-service-topology 아키텍처
+
+## 목적
+
+이 패키지는 `Project` 엔티티 페이지에서 사용하는 서비스 토폴로지 UI를 제공한다.
+
+범위:
+
+- 서비스 토폴로지 렌더링
+- 선택 컴포넌트 패널
+- inventory 표
+- 서비스 토폴로지 레이아웃/뷰 모델
+- catalog-neutral public API
+
+비범위:
+
+- `Project` domain, `System + x-edgestack` 확장 정의
+- catalog relation 생성
+- backend processor 로직
+
+위 항목은 `plugins/catalog-backend-module-extensions`가 담당한다.
+
+## 패키지 정보
+
+- package: `@internal/plugin-service-topology`
+- plugin id: `service-topology`
+- backstage role: `frontend-plugin`
+
+## Public API
+
+현재 export:
+
+- `ServiceTopology`
+- `buildTopologyModel`
+- `getProjectEntitiesForKindFilter`
+- `belongsToProject`
+
+의도된 사용 방식:
+
+```tsx
+import { ServiceTopology } from '@internal/plugin-service-topology';
+```
+
+`ProjectEntityPage`에서는 app-level container가 catalog를 조회한 뒤 다음처럼 사용한다.
+
+- Overview: `ServiceTopologyContainer -> ServiceTopology`
+- Inventory 탭: `ServiceTopologyContainer inventoryOnly -> ServiceTopology`
+
+## 내부 구성
+
+### `src/components/Topology.tsx`
+
+책임:
+
+- 상위 presentation orchestration
+- 선택 노드 상태 관리
+- inventory 탭 표 렌더링
+
+비책임:
+
+- catalog API 조회
+- Backstage entity context 접근
+- React Flow 캔버스 세부 렌더링
+- inspector lane 세부 렌더링
+
+### `src/components/TopologyCanvas.tsx`
+
+책임:
+
+- React Flow 기반 canvas 렌더링
+- flow node/edge layout 계산
+- zone / node 카드 프레젠테이션
+
+### `src/components/TopologyInspectorLane.tsx`
+
+책임:
+
+- 선택 노드 inspector 렌더링
+- owned resource chain 렌더링
+
+### `src/models/Topology.model.ts`
+
+책임:
+
+- 서비스 토폴로지 노드/엣지/zone 뷰 모델 생성
+- project membership 판정
+- `edge-stack system` detail/resource 정규화
+- public ingress domain-record metadata 정규화
+- static web component `spec.runtimeResources` 정규화
+
+## 데이터 흐름
+
+1. app-level container가 현재 entity context에서 `Project`를 읽는다.
+2. app-level container가 catalog에서 다음 엔티티를 조회한다.
+   - `Component`
+   - `System` with `metadata.annotations.kabang.cloud/system-role=edge-stack`
+3. `belongsToProject` 규칙으로 현재 프로젝트에 속한 엔티티만 선별한다.
+4. `buildTopologyModel`이 UI용 모델을 만든다.
+5. `ServiceTopology`가 canvas / inspector 를 조합해 최종 화면을 렌더링한다.
+
+## UX 원칙
+
+### Service Topology
+
+- `InfoCard` 기반
+- 좌에서 우로 읽는 트래픽 흐름
+- `Public Subnet`, `Private Subnet` 구분
+- public ingress는 별도 DNS 노드 대신 domain record 엔트리로 표현
+- hosted zone 정보는 ingress 노드 메타데이터로 유지
+
+### Selected Component
+
+- `InfoCard` 기반
+- 기본 메타데이터 표시
+- ingress, edge-stack system, component 공통으로 topology metadata 표시
+- 새 탭으로 열리는 entity 링크 제공
+- `Owned Resources` 다이어그램 제공
+
+### Inventory
+
+- `InfoCard` + Backstage `Table`
+- 서비스 토폴로지에 드러난 엔티티를 표로 정리
+
+## Theme 원칙
+
+`Selected Component`와 `Owned Resources` 영역은 고정 밝은 색을 쓰지 않는다.
+
+사용 기준:
+
+- 제목: `theme.palette.text.primary`
+- 보조 텍스트: `theme.palette.text.secondary`
+- 링크: `theme.palette.primary.main`
+- 카드 배경/보더: theme-aware 값
+
+## 현재 제약
+
+- `buildFlow`가 여전히 많은 배치 로직을 가진다.
+- `Owned Resources`는 ordered chain 기반이며 실제 resource graph는 아니다.
+- `WAF`는 독립 노드가 아니라 ALB 관련 세부 정보로만 드러난다.
+- project-page wiring과 generic topology surface가 함께 공존한다.
+
+## 리팩토링 후보
+
+우선순위 높은 것:
+
+1. `buildFlow`를 별도 layout module로 분리
+2. inventory table columns 분리
+3. selected component view model 분리
+
+중간 우선순위:
+
+4. ingress/domain record metadata view model 분리
+5. app-level wiring 추가 분리 시점 결정
+
+## 배치 원칙
+
+plugin 패키지 문서에는 다음만 둔다.
+
+- plugin 구조
+- export surface
+- app wiring 방식
+- frontend 구현 제약
+
+다음은 `docs/`에 둔다.
+
+- ADR
+- 도메인 모델
+- `System + x-edgestack` 스키마

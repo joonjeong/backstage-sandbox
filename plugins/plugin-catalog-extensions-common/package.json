@@ -1,0 +1,27 @@
+{
+  "name": "@internal/plugin-catalog-extensions-common",
+  "version": "0.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "backstage": {
+    "role": "common-library"
+  },
+  "scripts": {
+    "build": "backstage-cli package build",
+    "clean": "backstage-cli package clean",
+    "lint": "../../node_modules/.bin/eslint src --ext .ts",
+    "prepack": "backstage-cli package prepack",
+    "postpack": "backstage-cli package postpack",
+    "test": "backstage-cli package test"
+  },
+  "dependencies": {
+    "@backstage/catalog-model": "^1.7.6"
+  },
+  "devDependencies": {
+    "@backstage/cli": "^0.35.4"
+  },
+  "files": [
+    "dist"
+  ]
+}

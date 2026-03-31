@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Grid } from '@material-ui/core';
 import { EntityAboutCard, EntityLayout } from '@backstage/plugin-catalog';
-import { ProjectServiceMapContainer } from './ProjectServiceMapContainer';
+import { ServiceTopologyContainer } from './ServiceTopologyContainer';
 
 type ProjectEntityPageProps = {
   entityWarningContent: ReactNode;
@@ -19,14 +19,14 @@ export function ProjectEntityPage({
             <EntityAboutCard variant="gridItem" />
           </Grid>
           <Grid item xs={12}>
-            <ProjectServiceMapContainer />
+            <ServiceTopologyContainer />
           </Grid>
         </Grid>
       </EntityLayout.Route>
       <EntityLayout.Route path="/components" title="Inventory">
         <Grid container spacing={3} alignItems="stretch">
           <Grid item xs={12}>
-            <ProjectServiceMapContainer inventoryOnly />
+            <ServiceTopologyContainer inventoryOnly />
           </Grid>
         </Grid>
       </EntityLayout.Route>

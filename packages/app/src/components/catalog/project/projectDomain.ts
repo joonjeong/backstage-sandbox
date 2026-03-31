@@ -1,9 +1,13 @@
-import type { Entity } from '@backstage/catalog-model';
+import {
+  PROJECT_DOMAIN_ROLE,
+  PROJECT_DOMAIN_ROLE_ANNOTATION,
+} from '@internal/plugin-catalog-extensions-common';
+import { type Entity, isDomainEntity } from '@backstage/catalog-model';
 import type { EntityFilter } from '@backstage/plugin-catalog-react';
 
+export { PROJECT_DOMAIN_ROLE, PROJECT_DOMAIN_ROLE_ANNOTATION } from '@internal/plugin-catalog-extensions-common';
+
 export const PROJECT_DOMAIN_KIND = 'Domain';
-export const PROJECT_DOMAIN_ROLE_ANNOTATION = 'kabang.cloud/domain-role';
-export const PROJECT_DOMAIN_ROLE = 'project';
 
 function normalizeProjectDomainRole(value: string | undefined): string {
   return value?.trim().toLocaleLowerCase('en-US') ?? '';
@@ -11,8 +15,7 @@ function normalizeProjectDomainRole(value: string | undefined): string {
 
 export function isProjectDomainEntity(entity: Entity): boolean {
   return (
-    entity.kind.toLocaleLowerCase('en-US') ===
-      PROJECT_DOMAIN_KIND.toLocaleLowerCase('en-US') &&
+    isDomainEntity(entity) &&
     normalizeProjectDomainRole(
       entity.metadata.annotations?.[PROJECT_DOMAIN_ROLE_ANNOTATION],
     ) === PROJECT_DOMAIN_ROLE
