@@ -15,11 +15,8 @@ separated from the stock Backstage app wiring in `packages/backend`.
 
 Current Inhouse CMDB package layout:
 
-- `catalog-backend-module-dynamodb`
-  Generic DynamoDB-backed catalog location module
-- `catalog-backend-module-database`
-  Generic Knex/SQL-backed catalog location module
 - `catalog-backend-module-inhouse`
-  Inhouse `kabang.cloud/v1` `Project` catalog backend module
+  Inhouse catalog backend module
+  Includes entity extensions for domain/system/location handling
 
 See each package `README.md` for ownership boundaries and edit guidance.

@@ -1,46 +1,42 @@
 import type { LoggerService } from '@backstage/backend-plugin-api';
 import type { Config } from '@backstage/config';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import {
-  DynamoDBDocumentClient,
-  QueryCommand,
-} from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import type { LocationSpec } from '@backstage/plugin-catalog-common';
 import type {
   CatalogProcessor,
   CatalogProcessorCache,
   CatalogProcessorEmit,
   CatalogProcessorParser,
-  LocationSpec,
 } from '@backstage/plugin-catalog-node';
 import { processingResult } from '@backstage/plugin-catalog-node';
 import {
-  CatalogEntityDocument,
   DYNAMODB_LOCATION_TYPE,
-  InlineDynamoDbTargetPayload,
-  InlineMappedSourceConfig,
-  InlineMappedSourceRecord,
+  type CatalogEntityDocument,
   type DynamoDbLocationEntity,
+  type InlineDynamoDbTargetPayload,
+  type InlineMappedSourceConfig,
+  type InlineMappedSourceRecord,
 } from './types';
 import { toMappedCatalogEntityDocument } from './templates';
 
 const INLINE_DYNAMODB_TARGET_HOST = 'inline';
 
-export { DYNAMODB_LOCATION_TYPE };
-
-type ResolvedDynamoDbLocationTarget =
-  | {
-      mode: 'inline-mapped';
-      sourceName: string;
-      loadDocuments: () => Promise<CatalogEntityDocument[]>;
-    };
+type ResolvedDynamoDbLocationTarget = {
+  mode: 'inline-mapped';
+  sourceName: string;
+  loadDocuments: () => Promise<CatalogEntityDocument[]>;
+};
 
 export function parseRawDynamoDbLocationTarget(_target: string): never {
   throw new Error(
-    "The generic DynamoDB catalog module only supports inline Location.spec.x-dynamodb; raw:<source> is not supported here",
+    'The generic DynamoDB catalog module only supports inline Location.spec.x-dynamodb; raw:<source> is not supported here',
   );
 }
 
-function encodeInlineDynamoDbTarget(payload: InlineDynamoDbTargetPayload): string {
+function encodeInlineDynamoDbTarget(
+  payload: InlineDynamoDbTargetPayload,
+): string {
   const config = Buffer.from(JSON.stringify(payload), 'utf8').toString(
     'base64url',
   );

@@ -4,10 +4,9 @@ import { DatabaseLocationProcessor } from './processor';
 
 describe('DatabaseLocationProcessor', () => {
   it('ignores non-database locations', async () => {
-    const processor = new DatabaseLocationProcessor(
-      new ConfigReader({}),
-      { info: jest.fn() } as any,
-    );
+    const processor = new DatabaseLocationProcessor(new ConfigReader({}), {
+      info: jest.fn(),
+    } as any);
 
     const handled = await processor.readLocation(
       { type: 'url', target: 'https://example.com/catalog-info.yaml' },
@@ -21,10 +20,9 @@ describe('DatabaseLocationProcessor', () => {
   });
 
   it('normalizes inline x-database Location specs before readLocation', async () => {
-    const processor = new DatabaseLocationProcessor(
-      new ConfigReader({}),
-      { info: jest.fn() } as any,
-    );
+    const processor = new DatabaseLocationProcessor(new ConfigReader({}), {
+      info: jest.fn(),
+    } as any);
 
     const processed = await processor.preProcessEntity(
       {
@@ -79,10 +77,9 @@ describe('DatabaseLocationProcessor', () => {
 
   it('can use normalized inline targets in readLocation', async () => {
     const emit = jest.fn();
-    const baseProcessor = new DatabaseLocationProcessor(
-      new ConfigReader({}),
-      { info: jest.fn() } as any,
-    );
+    const baseProcessor = new DatabaseLocationProcessor(new ConfigReader({}), {
+      info: jest.fn(),
+    } as any);
     const processed = await baseProcessor.preProcessEntity(
       {
         apiVersion: 'backstage.io/v1alpha1',

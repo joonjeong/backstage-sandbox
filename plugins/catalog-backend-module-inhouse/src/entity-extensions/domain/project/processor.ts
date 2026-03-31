@@ -1,10 +1,10 @@
 import type { LoggerService } from '@backstage/backend-plugin-api';
 import type { Config } from '@backstage/config';
+import type { LocationSpec } from '@backstage/plugin-catalog-common';
 import type {
   CatalogProcessor,
   CatalogProcessorCache,
   CatalogProcessorEmit,
-  LocationSpec,
 } from '@backstage/plugin-catalog-node';
 import type { Entity } from '@backstage/catalog-model';
 import { isProjectDomainEntity } from './types';

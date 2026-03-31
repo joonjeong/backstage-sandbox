@@ -5,6 +5,8 @@ import {
 import { catalogProcessingExtensionPoint } from '@backstage/plugin-catalog-node';
 import { ProjectDomainProcessor } from './entity-extensions/domain/project/processor';
 import { EdgeStackSystemProcessor } from './entity-extensions/system/edge-stack/processor';
+import { DatabaseLocationProcessor } from './entity-extensions/location/database/processor';
+import { DynamoDbLocationProcessor } from './entity-extensions/location/dynamodb/processor';
 
 export default createBackendModule({
   pluginId: 'catalog',
@@ -17,6 +19,8 @@ export default createBackendModule({
         config: coreServices.rootConfig,
       },
       async init({ catalog, logger, config }) {
+        catalog.addProcessor(new DatabaseLocationProcessor(config, logger));
+        catalog.addProcessor(new DynamoDbLocationProcessor(config, logger));
         catalog.addProcessor(new ProjectDomainProcessor(config, logger));
         catalog.addProcessor(new EdgeStackSystemProcessor(config, logger));
       },

@@ -29,11 +29,15 @@ function renderTemplateString(
   return template
     .replace(/\$\{([^}]+)\}/g, (_, expression) => {
       const resolved = resolvePath(context, String(expression).trim());
-      return resolved === null || resolved === undefined ? '' : String(resolved);
+      return resolved === null || resolved === undefined
+        ? ''
+        : String(resolved);
     })
     .replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, expression) => {
       const resolved = resolvePath(context, String(expression).trim());
-      return resolved === null || resolved === undefined ? '' : String(resolved);
+      return resolved === null || resolved === undefined
+        ? ''
+        : String(resolved);
     });
 }
 
@@ -81,15 +85,13 @@ function normalizeMappedEntity(
       annotations: {
         ...annotations,
         'metadata.backstage.io/source-name': sourceName,
-        'backstage.io/managed-by-location': annotations[
-          'backstage.io/managed-by-location'
-        ] ??
+        'backstage.io/managed-by-location':
+          annotations['backstage.io/managed-by-location'] ??
           `url:https://catalog-database-module/${encodeURIComponent(
             sourceName,
           )}/${encodeURIComponent(locationKey)}`,
-        'backstage.io/managed-by-origin-location': annotations[
-          'backstage.io/managed-by-origin-location'
-        ] ??
+        'backstage.io/managed-by-origin-location':
+          annotations['backstage.io/managed-by-origin-location'] ??
           `url:https://catalog-database-module/${encodeURIComponent(
             sourceName,
           )}/${encodeURIComponent(locationKey)}`,

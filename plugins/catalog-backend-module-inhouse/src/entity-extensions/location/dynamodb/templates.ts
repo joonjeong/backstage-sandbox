@@ -29,11 +29,15 @@ export function renderTemplateString(
   return template
     .replace(/\$\{([^}]+)\}/g, (_, expression) => {
       const resolved = resolvePath(context, String(expression).trim());
-      return resolved === null || resolved === undefined ? '' : String(resolved);
+      return resolved === null || resolved === undefined
+        ? ''
+        : String(resolved);
     })
     .replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, expression) => {
       const resolved = resolvePath(context, String(expression).trim());
-      return resolved === null || resolved === undefined ? '' : String(resolved);
+      return resolved === null || resolved === undefined
+        ? ''
+        : String(resolved);
     });
 }
 
@@ -99,7 +103,9 @@ export function toMappedCatalogEntityDocument(
     !renderedEntity?.kind ||
     !renderedEntity?.metadata?.name
   ) {
-    throw new Error(`dynamodb inline mapper for '${source.name}' rendered an invalid entity`);
+    throw new Error(
+      `dynamodb inline mapper for '${source.name}' rendered an invalid entity`,
+    );
   }
 
   const entityRef = stringifyEntityRef(renderedEntity);

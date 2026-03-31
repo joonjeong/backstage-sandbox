@@ -1,17 +1,17 @@
 import type { LoggerService } from '@backstage/backend-plugin-api';
 import type { Config } from '@backstage/config';
 import Knex from 'knex';
+import type { LocationSpec } from '@backstage/plugin-catalog-common';
 import type {
   CatalogProcessor,
   CatalogProcessorCache,
   CatalogProcessorEmit,
   CatalogProcessorParser,
-  LocationSpec,
 } from '@backstage/plugin-catalog-node';
 import { processingResult } from '@backstage/plugin-catalog-node';
 import {
-  CatalogEntityDocument,
   DATABASE_LOCATION_TYPE,
+  type CatalogEntityDocument,
   type DatabaseLocationEntity,
   type InlineDatabaseTargetPayload,
   type InlineMappedSourceConfig,
@@ -20,8 +20,6 @@ import {
 import { toMappedCatalogEntityDocument } from './templates';
 
 const INLINE_DATABASE_TARGET_HOST = 'inline';
-
-export { DATABASE_LOCATION_TYPE };
 
 type ResolvedDatabaseLocationTarget = {
   mode: 'inline-mapped';

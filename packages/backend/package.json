@@ -42,8 +42,6 @@
     "@backstage/plugin-search-backend-node": "^1.4.1",
     "@backstage/plugin-signals-backend": "^0.3.12",
     "@backstage/plugin-techdocs-backend": "^2.1.5",
-    "@internal/plugin-catalog-backend-module-database": "workspace:*",
-    "@internal/plugin-catalog-backend-module-dynamodb": "workspace:*",
     "@internal/plugin-catalog-backend-module-inhouse": "workspace:*",
     "app": "link:../app",
     "node-gyp": "^10.0.0",

@@ -15,10 +15,9 @@ describe('parseRawDynamoDbLocationTarget', () => {
 
 describe('DynamoDbLocationProcessor', () => {
   it('ignores non-dynamodb locations', async () => {
-    const processor = new DynamoDbLocationProcessor(
-      new ConfigReader({}),
-      { info: jest.fn() } as any,
-    );
+    const processor = new DynamoDbLocationProcessor(new ConfigReader({}), {
+      info: jest.fn(),
+    } as any);
 
     const handled = await processor.readLocation(
       { type: 'url', target: 'https://example.com/catalog-info.yaml' },
@@ -33,10 +32,9 @@ describe('DynamoDbLocationProcessor', () => {
 
   it('emits input errors for invalid targets', async () => {
     const emit = jest.fn();
-    const processor = new DynamoDbLocationProcessor(
-      new ConfigReader({}),
-      { info: jest.fn() } as any,
-    );
+    const processor = new DynamoDbLocationProcessor(new ConfigReader({}), {
+      info: jest.fn(),
+    } as any);
 
     await processor.readLocation(
       {
@@ -57,10 +55,9 @@ describe('DynamoDbLocationProcessor', () => {
   });
 
   it('normalizes inline x-dynamodb Location specs before readLocation', async () => {
-    const processor = new DynamoDbLocationProcessor(
-      new ConfigReader({}),
-      { info: jest.fn() } as any,
-    );
+    const processor = new DynamoDbLocationProcessor(new ConfigReader({}), {
+      info: jest.fn(),
+    } as any);
 
     const processed = await processor.preProcessEntity(
       {
@@ -108,10 +105,9 @@ describe('DynamoDbLocationProcessor', () => {
 
   it('can use normalized inline targets in readLocation', async () => {
     const emit = jest.fn();
-    const baseProcessor = new DynamoDbLocationProcessor(
-      new ConfigReader({}),
-      { info: jest.fn() } as any,
-    );
+    const baseProcessor = new DynamoDbLocationProcessor(new ConfigReader({}), {
+      info: jest.fn(),
+    } as any);
     const processed = await baseProcessor.preProcessEntity(
       {
         apiVersion: 'backstage.io/v1alpha1',
