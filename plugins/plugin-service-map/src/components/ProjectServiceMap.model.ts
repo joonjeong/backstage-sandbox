@@ -17,6 +17,7 @@ const PUBLIC_ZONE_ID = 'public';
 const PRIVATE_ZONE_ID = 'private';
 const APP_ZONE_ID = 'app';
 const K8S_ZONE_ID = 'k8s';
+const DB_ZONE_ID = 'db';
 const INTRA_ZONE_ID = 'intra';
 
 type ServiceMapNodeKind = 'ingress' | 'component';
@@ -209,7 +210,7 @@ function getZoneMeta(zoneId: string): ServiceMapZone {
     return {
       id: zoneId,
       title: 'App Subnet',
-      description: 'Direct-entry application workloads, data stores, and internal services',
+      description: 'Direct-entry application services and cache workloads',
     };
   }
 
@@ -218,6 +219,14 @@ function getZoneMeta(zoneId: string): ServiceMapZone {
       id: zoneId,
       title: 'K8s Subnet',
       description: 'Direct-entry Kubernetes ingress and container workloads',
+    };
+  }
+
+  if (zoneId === DB_ZONE_ID) {
+    return {
+      id: zoneId,
+      title: 'DB Subnet',
+      description: 'Isolated database workloads reachable from app and k8s services',
     };
   }
 
@@ -632,6 +641,7 @@ function compareZoneIds(left: string, right: string): number {
     PUBLIC_ZONE_ID,
     APP_ZONE_ID,
     K8S_ZONE_ID,
+    DB_ZONE_ID,
     PRIVATE_ZONE_ID,
     INTRA_ZONE_ID,
   ];

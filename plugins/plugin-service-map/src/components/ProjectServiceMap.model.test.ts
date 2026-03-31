@@ -431,7 +431,7 @@ describe('buildProjectServiceMapModel', () => {
     );
   });
 
-  it('builds the app-webview topology across public, app, k8s, and intra subnets', () => {
+  it('builds the app-webview topology across public, app, k8s, db, and intra subnets', () => {
     const project = {
       apiVersion: 'kabang.cloud/v1',
       kind: 'Project',
@@ -552,20 +552,7 @@ describe('buildProjectServiceMapModel', () => {
         type: 'service',
         lifecycle: 'production',
       },
-      relations: [
-        {
-          type: 'dependsOn',
-          targetRef: 'component:default/app-webview-redis',
-        },
-        {
-          type: 'dependsOn',
-          targetRef: 'component:default/app-webview-mysql',
-        },
-        {
-          type: 'dependsOn',
-          targetRef: 'component:default/app-webview-ldap',
-        },
-      ],
+      relations: [],
     } as Entity;
 
     const redis = {
@@ -596,7 +583,7 @@ describe('buildProjectServiceMapModel', () => {
         title: 'MySQL Database',
         annotations: {
           'kabang.cloud/project': 'project:default/app-webview',
-          'kabang.cloud/service-zone': 'app',
+          'kabang.cloud/service-zone': 'db',
         },
       },
       spec: {
@@ -640,6 +627,7 @@ describe('buildProjectServiceMapModel', () => {
         expect.objectContaining({ id: 'public', title: 'Public Subnet' }),
         expect.objectContaining({ id: 'k8s', title: 'K8s Subnet' }),
         expect.objectContaining({ id: 'app', title: 'App Subnet' }),
+        expect.objectContaining({ id: 'db', title: 'DB Subnet' }),
         expect.objectContaining({ id: 'intra', title: 'Intra Subnet' }),
       ],
     );
@@ -666,26 +654,14 @@ describe('buildProjectServiceMapModel', () => {
           target: 'component:default/app-webview-workload',
           label: 'routes traffic',
         }),
-        expect.objectContaining({
-          source: 'component:default/app-webview-workload',
-          target: 'component:default/app-webview-redis',
-          label: 'routes traffic',
-        }),
-        expect.objectContaining({
-          source: 'component:default/app-webview-workload',
-          target: 'component:default/app-webview-mysql',
-          label: 'routes traffic',
-        }),
-        expect.objectContaining({
-          source: 'component:default/app-webview-workload',
-          target: 'component:default/app-webview-ldap',
-          label: 'routes traffic',
-        }),
       ]),
     );
 
     const staticNode = model.nodes.find(
       node => node.id === 'component:default/app-webview-static-web-view',
+    );
+    const mysqlNode = model.nodes.find(
+      node => node.id === 'component:default/app-webview-mysql',
     );
 
     expect(staticNode?.ownedResources).toEqual(
@@ -694,32 +670,35 @@ describe('buildProjectServiceMapModel', () => {
         expect.objectContaining({ subtitle: 'origin · S3' }),
       ]),
     );
+    expect(mysqlNode?.zone).toBe('db');
 
     const flow = buildFlow(model);
-    const privateGroup = flow.nodes.find(node => node.id === 'zone-group:private');
-    const k8sZone = flow.nodes.find(node => node.id === 'zone:k8s');
+    const publicZone = flow.nodes.find(node => node.id === 'zone:public');
     const appZone = flow.nodes.find(node => node.id === 'zone:app');
+    const k8sZone = flow.nodes.find(node => node.id === 'zone:k8s');
+    const dbZone = flow.nodes.find(node => node.id === 'zone:db');
     const intraZone = flow.nodes.find(node => node.id === 'zone:intra');
 
-    expect(privateGroup).toBeDefined();
-    expect(k8sZone?.position.y).toBe(appZone?.position.y);
-    expect((intraZone?.position.y ?? 0)).toBeGreaterThan(appZone?.position.y ?? 0);
-    expect((appZone?.position.x ?? 0)).toBeGreaterThan(k8sZone?.position.x ?? 0);
-    expect((intraZone?.position.x ?? 0)).toBeGreaterThanOrEqual(k8sZone?.position.x ?? 0);
-    expect((intraZone?.position.x ?? 0)).toBeLessThanOrEqual(appZone?.position.x ?? 0);
-
-    const ldapEdge = flow.edges.find(
-      edge =>
-        edge.source === 'component:default/app-webview-workload' &&
-        edge.target === 'component:default/app-webview-ldap',
-    );
-
-    expect(ldapEdge).toEqual(
-      expect.objectContaining({
-        sourceHandle: 'south',
-        targetHandle: 'north',
-      }),
-    );
+    expect(flow.nodes.find(node => node.id === 'zone-group:private')).toBeUndefined();
+    expect((appZone?.position.x ?? 0)).toBeGreaterThan(publicZone?.position.x ?? 0);
+    expect(appZone?.position.x).toBe(k8sZone?.position.x);
+    expect((k8sZone?.position.y ?? 0)).toBeGreaterThan(appZone?.position.y ?? 0);
+    expect((dbZone?.position.x ?? 0)).toBeGreaterThan(appZone?.position.x ?? 0);
+    expect(dbZone?.position.x).toBe(intraZone?.position.x);
+    expect((intraZone?.position.y ?? 0)).toBeGreaterThan(dbZone?.position.y ?? 0);
+    expect(appZone?.style?.width).toBe(k8sZone?.style?.width);
+    expect(dbZone?.style?.width).toBe(intraZone?.style?.width);
+    expect(
+      flow.edges.some(
+        edge =>
+          edge.source === 'component:default/app-webview-workload' &&
+          [
+            'component:default/app-webview-redis',
+            'component:default/app-webview-mysql',
+            'component:default/app-webview-ldap',
+          ].includes(edge.target),
+      ),
+    ).toBe(false);
   });
 
   it('groups direct-entry private subnets before intra and keeps intra last', () => {

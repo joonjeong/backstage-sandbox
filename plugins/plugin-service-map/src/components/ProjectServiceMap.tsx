@@ -40,12 +40,26 @@ const useStyles = makeStyles(theme => ({
     minHeight: 700,
     borderRadius: 16,
     overflow: 'hidden',
+    display: 'flex',
     background:
       'radial-gradient(circle at top left, rgba(33, 150, 243, 0.08), transparent 32%), linear-gradient(180deg, #f8fbff 0%, #f4f7fb 100%)',
   },
   canvas: {
-    width: '100%',
+    flex: 1,
     height: 700,
+    minWidth: 0,
+  },
+  canvasLane: {
+    width: 360,
+    minWidth: 360,
+    height: 700,
+    padding: theme.spacing(2),
+    boxSizing: 'border-box',
+    borderLeft: '1px solid rgba(148, 163, 184, 0.2)',
+    background:
+      theme.palette.type === 'dark'
+        ? 'rgba(15, 23, 42, 0.4)'
+        : 'linear-gradient(180deg, rgba(255, 255, 255, 0.74) 0%, rgba(248, 250, 252, 0.96) 100%)',
   },
   loading: {
     height: 700,
@@ -170,6 +184,7 @@ const useStyles = makeStyles(theme => ({
     maxWidth: 420,
   },
   selectedLane: {
+    height: '100%',
     borderRadius: 16,
     border: `1px solid ${theme.palette.divider}`,
     background: theme.palette.background.paper,
@@ -279,8 +294,9 @@ const useStyles = makeStyles(theme => ({
   resourceDiagram: {
     marginTop: theme.spacing(2),
     display: 'flex',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: theme.spacing(1),
   },
   resourceNode: {
@@ -293,6 +309,8 @@ const useStyles = makeStyles(theme => ({
     padding: theme.spacing(1.25),
     minWidth: 170,
     maxWidth: 220,
+    width: '100%',
+    textAlign: 'center',
   },
   resourceNodeTitle: {
     color: theme.palette.text.primary,
@@ -307,8 +325,9 @@ const useStyles = makeStyles(theme => ({
   resourceArrow: {
     color: theme.palette.primary.main,
     fontWeight: 800,
-    fontSize: '1rem',
-    padding: theme.spacing(0, 0.5),
+    fontSize: '1.1rem',
+    lineHeight: 1,
+    padding: theme.spacing(0.25, 0),
   },
 }));
 
@@ -577,10 +596,6 @@ export function buildFlow(
   const zonePaddingRight = 40;
   const zonePaddingTop = 28;
   const zonePaddingBottom = 36;
-  const privateGroupPaddingLeft = 36;
-  const privateGroupPaddingRight = 36;
-  const privateGroupPaddingTop = 72;
-  const privateGroupPaddingBottom = 32;
   const privateGroupColumnGap = 40;
   const privateGroupRowGap = 56;
   const ingressGap = 64;
@@ -781,13 +796,20 @@ export function buildFlow(
   const customPrivateZoneIds = zoneOrder.filter(
     zoneId => !['public', 'private'].includes(zoneId),
   );
-  const shouldGroupPrivateZones = customPrivateZoneIds.length > 1;
+  const groupedZoneColumns = [
+    ['app', 'k8s'],
+    ['db', 'intra'],
+  ]
+    .map(zoneIds => zoneIds.filter(zoneId => customPrivateZoneIds.includes(zoneId)))
+    .filter(zoneIds => zoneIds.length > 0);
+  const groupedZoneIds = new Set(groupedZoneColumns.flat());
+  const remainingCustomZoneIds = customPrivateZoneIds.filter(
+    zoneId => !groupedZoneIds.has(zoneId),
+  );
   const flowNodes: Node[] = [];
 
-  if (shouldGroupPrivateZones) {
+  if (groupedZoneColumns.length > 0) {
     const publicZoneMetrics = zoneLayoutMetrics.get('public');
-    const privateTopZoneIds = customPrivateZoneIds.filter(zoneId => zoneId !== 'intra');
-    const privateBottomZoneIds = customPrivateZoneIds.filter(zoneId => zoneId === 'intra');
 
     let currentZoneX = zoneStartX;
     if (publicZoneMetrics) {
@@ -799,81 +821,37 @@ export function buildFlow(
       currentZoneX += publicZoneMetrics.width + zoneGap;
     }
 
-    const topRowWidth = privateTopZoneIds.reduce((total, zoneId, index) => {
-      const width = zoneLayoutMetrics.get(zoneId)?.width ?? minZoneWidth;
-      return total + width + (index > 0 ? privateGroupColumnGap : 0);
-    }, 0);
-    const topRowHeight = Math.max(
-      ...privateTopZoneIds.map(zoneId => zoneLayoutMetrics.get(zoneId)?.height ?? minZoneHeight),
-      0,
-    );
-    const bottomRowWidth = privateBottomZoneIds.reduce((total, zoneId, index) => {
-      const width = zoneLayoutMetrics.get(zoneId)?.width ?? minZoneWidth;
-      return total + width + (index > 0 ? privateGroupColumnGap : 0);
-    }, 0);
-    const bottomRowHeight = Math.max(
-      ...privateBottomZoneIds.map(zoneId => zoneLayoutMetrics.get(zoneId)?.height ?? minZoneHeight),
-      0,
-    );
-    const privateContentWidth = Math.max(topRowWidth, bottomRowWidth, minZoneWidth);
-    const privateGroupWidth =
-      privateGroupPaddingLeft + privateContentWidth + privateGroupPaddingRight;
-    const privateGroupHeight =
-      privateGroupPaddingTop +
-      topRowHeight +
-      (privateBottomZoneIds.length > 0 ? privateGroupRowGap + bottomRowHeight : 0) +
-      privateGroupPaddingBottom;
-    const privateGroupX = currentZoneX;
-    const privateGroupY = zoneStartY;
-    const topRowStartX = privateGroupX + privateGroupPaddingLeft;
-    const topRowY = privateGroupY + privateGroupPaddingTop;
+    for (const columnZoneIds of groupedZoneColumns) {
+      const columnWidth = Math.max(
+        ...columnZoneIds.map(
+          zoneId => zoneLayoutMetrics.get(zoneId)?.width ?? minZoneWidth,
+        ),
+      );
+      let currentZoneY = zoneStartY;
 
-    let cursorX = topRowStartX;
-    for (const zoneId of privateTopZoneIds) {
+      for (const zoneId of columnZoneIds) {
+        const metrics = zoneLayoutMetrics.get(zoneId)!;
+        zoneLayoutMetrics.set(zoneId, {
+          ...metrics,
+          width: columnWidth,
+          x: currentZoneX,
+          y: currentZoneY,
+        });
+        currentZoneY += metrics.height + privateGroupRowGap;
+      }
+
+      currentZoneX += columnWidth + privateGroupColumnGap;
+    }
+
+    for (const zoneId of remainingCustomZoneIds) {
       const metrics = zoneLayoutMetrics.get(zoneId)!;
       zoneLayoutMetrics.set(zoneId, {
         ...metrics,
-        x: cursorX,
-        y: topRowY,
+        x: currentZoneX,
+        y: zoneStartY,
       });
-      cursorX += metrics.width + privateGroupColumnGap;
+      currentZoneX += metrics.width + zoneGap;
     }
-
-    const bottomRowY = topRowY + topRowHeight + privateGroupRowGap;
-    for (const zoneId of privateBottomZoneIds) {
-      const metrics = zoneLayoutMetrics.get(zoneId)!;
-      zoneLayoutMetrics.set(zoneId, {
-        ...metrics,
-        x:
-          privateGroupX +
-          privateGroupPaddingLeft +
-          Math.max(0, (privateContentWidth - metrics.width) / 2),
-        y: bottomRowY,
-      });
-    }
-
-    flowNodes.push({
-      id: 'zone-group:private',
-      type: 'zoneGroup',
-      position: {
-        x: privateGroupX,
-        y: privateGroupY,
-      },
-      draggable: false,
-      selectable: false,
-      style: {
-        width: privateGroupWidth,
-        height: privateGroupHeight,
-        border: 'none',
-        background: 'transparent',
-      },
-      data: {
-        title: 'Private Subnets',
-        description:
-          'App and k8s zones sit side by side as direct-entry tiers, while intra stays below as an internal-only dependency tier.',
-      },
-      zIndex: -1,
-    });
   } else {
     let currentZoneX = zoneStartX;
     for (const zoneId of zoneOrder) {
@@ -1053,7 +1031,6 @@ export function ProjectServiceMap({
 
   const flow = buildFlow(model, selectedNodeId);
   const selectedSummary = getSelectedNodeSummary(model, selectedNodeId);
-  const selectedDetails = selectedSummary?.node.details ?? [];
   const visibleNodeRows = getVisibleNodeRows(model);
   const inventoryColumns: TableColumn<ServiceMapVisibleNodeRow>[] = [
     {
@@ -1113,7 +1090,6 @@ export function ProjectServiceMap({
     setSelectedNodeId(node.id);
   };
   const ownedResources = selectedSummary?.node.ownedResources ?? [];
-  const hasTopologyDetails = selectedDetails.length > 0;
   const hasOwnedResources = ownedResources.length > 0;
 
   if (inventoryOnly) {
@@ -1166,160 +1142,128 @@ export function ProjectServiceMap({
               <Controls showInteractive={false} />
             </ReactFlow>
           </div>
-        </div>
-      </InfoCard>
+          <div className={classes.canvasLane}>
+            <div className={classes.selectedLane}>
+              <div className={classes.selectedGrid}>
+                <div className={classes.selectedPrimary}>
+                  <div className={classes.inspector}>
+                    {selectedSummary ? (
+                      <>
+                        <Typography variant="subtitle1" className={classes.inspectorTitle}>
+                          {selectedSummary.node.title}
+                        </Typography>
+                        {selectedSummary.node.subtitle && (
+                          <Typography
+                            variant="body2"
+                            className={classes.inspectorSubtitle}
+                          >
+                            {selectedSummary.node.subtitle}
+                          </Typography>
+                        )}
+                        <div className={classes.inspectorRow}>
+                          <Typography className={classes.inspectorLabel}>Zone</Typography>
+                          <Typography className={classes.inspectorValue}>
+                            {selectedSummary.zone}
+                          </Typography>
+                        </div>
+                        <div className={classes.inspectorRow}>
+                          <Typography className={classes.inspectorLabel}>Incoming</Typography>
+                          <Typography className={classes.inspectorValue}>
+                            {selectedSummary.incomingCount}
+                          </Typography>
+                        </div>
+                        <div className={classes.inspectorRow}>
+                          <Typography className={classes.inspectorLabel}>Outgoing</Typography>
+                          <Typography className={classes.inspectorValue}>
+                            {selectedSummary.outgoingCount}
+                          </Typography>
+                        </div>
+                        <div className={classes.inspectorRow}>
+                          <Typography className={classes.inspectorLabel}>Exposure</Typography>
+                          <Typography className={classes.inspectorValue}>
+                            {selectedSummary.node.exposure}
+                          </Typography>
+                        </div>
+                        <div className={classes.inspectorRow}>
+                          <Typography className={classes.inspectorLabel}>Entity</Typography>
+                          <Typography className={classes.inspectorValue}>
+                            {selectedSummary.node.componentKind === 'component' &&
+                            selectedSummary.node.entityRef ? (
+                              <EntityLinkWithIcon
+                                entityRef={selectedSummary.node.entityRef}
+                                label={selectedSummary.node.title}
+                              />
+                            ) : (
+                              selectedSummary.node.entityRef ?? selectedSummary.node.id
+                            )}
+                          </Typography>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <Typography variant="subtitle1" className={classes.inspectorTitle}>
+                          Select a component
+                        </Typography>
+                        <Typography variant="body2" className={classes.inspectorHint}>
+                          Click a node in the service map to inspect its traffic and
+                          catalog information here.
+                        </Typography>
+                      </>
+                    )}
+                  </div>
+                </div>
 
-      <InfoCard
-        title="Selected Node"
-        subheader="Details for the currently selected node in the service map. Select a node to inspect its topology metadata and, when applicable, its owned resource chain."
-      >
-        <div className={classes.selectedGrid}>
-          <div className={classes.selectedPrimary}>
-            <div className={classes.inspector}>
-              {selectedSummary ? (
-                <>
-                  <Typography variant="subtitle1" className={classes.inspectorTitle}>
-                    {selectedSummary.node.title}
-                  </Typography>
-                  {selectedSummary.node.subtitle && (
-                    <Typography
-                      variant="body2"
-                      className={classes.inspectorSubtitle}
-                    >
-                      {selectedSummary.node.subtitle}
+                {hasOwnedResources ? (
+                  <div className={classes.selectedSection}>
+                    <Typography className={classes.selectedSectionTitle}>
+                      Topology Details
                     </Typography>
-                  )}
-                  <div className={classes.inspectorRow}>
-                    <Typography className={classes.inspectorLabel}>Zone</Typography>
-                    <Typography className={classes.inspectorValue}>
-                      {selectedSummary.zone}
+                    <Typography className={classes.selectedSectionHint}>
+                      Ordered owned resources shown as a top-to-bottom chain for
+                      the selected node.
                     </Typography>
+                    <div className={classes.resourceDiagram}>
+                      {ownedResources.flatMap((resource, index) => [
+                        <div
+                          key={`${resource.id}:diagram`}
+                          className={classes.resourceNode}
+                        >
+                          {resource.entityRef ? (
+                            <EntityLinkWithIcon
+                              entityRef={resource.entityRef}
+                              label={resource.title}
+                            />
+                          ) : (
+                            <Typography className={classes.resourceNodeTitle}>
+                              {resource.title}
+                            </Typography>
+                          )}
+                          <Typography className={classes.resourceNodeSubtitle}>
+                            {resource.subtitle}
+                          </Typography>
+                        </div>,
+                        index < ownedResources.length - 1 ? (
+                          <span
+                            key={`${resource.id}:arrow`}
+                            className={classes.resourceArrow}
+                          >
+                            ↓
+                          </span>
+                        ) : null,
+                      ])}
+                    </div>
                   </div>
-                  <div className={classes.inspectorRow}>
-                    <Typography className={classes.inspectorLabel}>Incoming</Typography>
-                    <Typography className={classes.inspectorValue}>
-                      {selectedSummary.incomingCount}
-                    </Typography>
-                  </div>
-                  <div className={classes.inspectorRow}>
-                    <Typography className={classes.inspectorLabel}>Outgoing</Typography>
-                    <Typography className={classes.inspectorValue}>
-                      {selectedSummary.outgoingCount}
-                    </Typography>
-                  </div>
-                  <div className={classes.inspectorRow}>
-                    <Typography className={classes.inspectorLabel}>Exposure</Typography>
-                    <Typography className={classes.inspectorValue}>
-                      {selectedSummary.node.exposure}
-                    </Typography>
-                  </div>
-                  <div className={classes.inspectorRow}>
-                    <Typography className={classes.inspectorLabel}>Entity</Typography>
-                    <Typography className={classes.inspectorValue}>
-                      {selectedSummary.node.componentKind === 'component' &&
-                      selectedSummary.node.entityRef ? (
-                        <EntityLinkWithIcon
-                          entityRef={selectedSummary.node.entityRef}
-                          label={selectedSummary.node.title}
-                        />
-                      ) : (
-                        selectedSummary.node.entityRef ?? selectedSummary.node.id
-                      )}
-                    </Typography>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Typography variant="subtitle1" className={classes.inspectorTitle}>
-                    Select a component
-                  </Typography>
+                ) : null}
+
+                {!hasOwnedResources ? (
                   <Typography variant="body2" className={classes.inspectorHint}>
-                    Click a node in the service map to inspect its traffic and
-                    catalog information here.
+                    No additional topology metadata is mapped for the current
+                    selection.
                   </Typography>
-                </>
-              )}
+                ) : null}
+              </div>
             </div>
           </div>
-
-          {hasTopologyDetails ? (
-            <div className={classes.selectedSection}>
-              <Typography className={classes.selectedSectionTitle}>
-                Topology Details
-              </Typography>
-              <Typography className={classes.selectedSectionHint}>
-                Metadata attached to the selected node, including hosted zones,
-                edge attachments, and service hops.
-              </Typography>
-              <div className={classes.resourceDiagram}>
-                {selectedDetails.map(detail => (
-                  <div key={detail.id} className={classes.resourceNode}>
-                    {detail.entityRef ? (
-                      <EntityLinkWithIcon
-                        entityRef={detail.entityRef}
-                        label={detail.title}
-                      />
-                    ) : (
-                      <Typography className={classes.resourceNodeTitle}>
-                        {detail.title}
-                      </Typography>
-                    )}
-                    <Typography className={classes.resourceNodeSubtitle}>
-                      {detail.subtitle}
-                    </Typography>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {hasOwnedResources ? (
-            <div className={classes.selectedSection}>
-              <Typography className={classes.selectedSectionTitle}>
-                Owned Resources
-              </Typography>
-              <Typography className={classes.selectedSectionHint}>
-                Ordered owned resources shown in the same left-to-right
-                topology language as the service map.
-              </Typography>
-              <div className={classes.resourceDiagram}>
-                {ownedResources.flatMap((resource, index) => [
-                  <div
-                    key={`${resource.id}:diagram`}
-                    className={classes.resourceNode}
-                  >
-                    {resource.entityRef ? (
-                      <EntityLinkWithIcon
-                        entityRef={resource.entityRef}
-                        label={resource.title}
-                      />
-                    ) : (
-                      <Typography className={classes.resourceNodeTitle}>
-                        {resource.title}
-                      </Typography>
-                    )}
-                    <Typography className={classes.resourceNodeSubtitle}>
-                      {resource.subtitle}
-                    </Typography>
-                  </div>,
-                  index < ownedResources.length - 1 ? (
-                    <span
-                      key={`${resource.id}:arrow`}
-                      className={classes.resourceArrow}
-                    >
-                      →
-                    </span>
-                  ) : null,
-                ])}
-              </div>
-            </div>
-          ) : null}
-
-          {!hasTopologyDetails && !hasOwnedResources ? (
-            <Typography variant="body2" className={classes.inspectorHint}>
-              No additional topology metadata is mapped for the current selection.
-            </Typography>
-          ) : null}
         </div>
       </InfoCard>
     </div>

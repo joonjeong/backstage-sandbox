@@ -367,10 +367,6 @@ spec:
   lifecycle: production
   owner: guests
   system: examples
-  dependsOn:
-    - component:default/app-webview-redis
-    - component:default/app-webview-mysql
-    - component:default/app-webview-ldap
 ---
 apiVersion: backstage.io/v1alpha1
 kind: Component
@@ -392,10 +388,10 @@ kind: Component
 metadata:
   name: app-webview-mysql
   title: MySQL Database
-  description: MySQL database in the app subnet.
+  description: MySQL database in the db subnet.
   annotations:
     kabang.cloud/project: app-webview
-    kabang.cloud/service-zone: app
+    kabang.cloud/service-zone: db
 spec:
   type: database
   lifecycle: production
