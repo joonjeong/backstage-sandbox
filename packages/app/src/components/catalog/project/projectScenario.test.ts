@@ -19,12 +19,15 @@ describe('projectScenario', () => {
   it('extracts editable values from an existing project entity', () => {
     expect(
       projectScenarioValuesFromEntity({
-        apiVersion: 'kabang.cloud/v1',
-        kind: 'Project',
+        apiVersion: 'backstage.io/v1alpha1',
+        kind: 'Domain',
         metadata: {
           name: 'guest-portal',
           title: 'Guest Portal',
           description: 'Portal project metadata',
+          annotations: {
+            'kabang.cloud/domain-role': 'project',
+          },
         },
         spec: {
           owner: 'user:default/guest',

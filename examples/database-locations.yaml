@@ -16,13 +16,14 @@ spec:
     updatedAtField: modified_at
     locationKey: 'sample:{{ item.entityRef }}'
     entity:
-      apiVersion: kabang.cloud/v1
-      kind: Project
+      apiVersion: backstage.io/v1alpha1
+      kind: Domain
       metadata:
         name: '{{ item.project_name }}'
         title: '{{ item.project_title }}'
         description: '{{ item.project_description }}'
         annotations:
+          kabang.cloud/domain-role: project
           example.com/source-row-id: '{{ item.id }}'
       spec:
         owner: '{{ item.owner_ref }}'

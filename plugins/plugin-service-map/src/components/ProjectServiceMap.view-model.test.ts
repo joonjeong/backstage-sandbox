@@ -9,8 +9,8 @@ import {
 describe('ProjectServiceMap view model helpers', () => {
   it('prefers an edge stack as the default selected node', () => {
     const project = {
-      apiVersion: 'kabang.cloud/v1',
-      kind: 'Project',
+      apiVersion: 'backstage.io/v1alpha1',
+      kind: 'Domain',
       metadata: {
         namespace: 'default',
         name: 'guest-portal',
@@ -24,7 +24,7 @@ describe('ProjectServiceMap view model helpers', () => {
         namespace: 'default',
         name: 'public-web-entry-prod',
         annotations: {
-          'kabang.cloud/project': 'project:default/guest-portal',
+          'kabang.cloud/project': 'domain:default/guest-portal',
         },
       },
       spec: {
@@ -47,7 +47,7 @@ describe('ProjectServiceMap view model helpers', () => {
         namespace: 'default',
         name: 'guest-portal-web',
         annotations: {
-          'kabang.cloud/project': 'project:default/guest-portal',
+          'kabang.cloud/project': 'domain:default/guest-portal',
         },
       },
       spec: {
@@ -64,8 +64,8 @@ describe('ProjectServiceMap view model helpers', () => {
 
   it('builds inventory rows and selected-node summaries from the rendered model', () => {
     const project = {
-      apiVersion: 'kabang.cloud/v1',
-      kind: 'Project',
+      apiVersion: 'backstage.io/v1alpha1',
+      kind: 'Domain',
       metadata: {
         namespace: 'default',
         name: 'guest-portal',
@@ -79,7 +79,7 @@ describe('ProjectServiceMap view model helpers', () => {
         namespace: 'default',
         name: 'guest-portal-web',
         annotations: {
-          'kabang.cloud/project': 'project:default/guest-portal',
+          'kabang.cloud/project': 'domain:default/guest-portal',
         },
       },
       spec: {
@@ -100,7 +100,7 @@ describe('ProjectServiceMap view model helpers', () => {
         namespace: 'default',
         name: 'guest-portal-api',
         annotations: {
-          'kabang.cloud/project': 'project:default/guest-portal',
+          'kabang.cloud/project': 'domain:default/guest-portal',
           'kabang.cloud/service-zone': 'private',
         },
       },

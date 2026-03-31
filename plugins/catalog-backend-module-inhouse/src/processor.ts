@@ -9,7 +9,10 @@ import {
   stringifyEntityRef,
   type CompoundEntityRef,
 } from '@backstage/catalog-model';
-import { entityKindSchemaValidator, type Entity } from '@backstage/catalog-model';
+import {
+  entityKindSchemaValidator,
+  type Entity,
+} from '@backstage/catalog-model';
 import type { Config } from '@backstage/config';
 import type {
   CatalogProcessor,
@@ -21,52 +24,76 @@ import { processingResult } from '@backstage/plugin-catalog-node';
 import {
   EDGE_STACK_KIND,
   EDGE_STACK_PROJECT_ANNOTATION,
-  PROJECT_API_VERSION,
+  PROJECT_DOMAIN_API_VERSION,
+  PROJECT_DOMAIN_KIND,
+  PROJECT_DOMAIN_ROLE,
+  PROJECT_DOMAIN_ROLE_ANNOTATION,
   PROJECT_COMPONENT_ANNOTATION,
-  PROJECT_KIND,
   RELATION_RECEIVES_TRAFFIC_FROM,
   RELATION_ROUTES_TRAFFIC_TO,
   type EdgeStackLinkedEntity,
   type EdgeStackEntity,
   type ProjectAwareComponentEntity,
-  type ProjectEntity,
+  type ProjectDomainEntity,
+  isProjectDomainEntity,
 } from './types';
 
-const projectEntityValidator = entityKindSchemaValidator<ProjectEntity>({
-  type: 'object',
-  required: ['apiVersion', 'kind', 'metadata', 'spec'],
-  properties: {
-    apiVersion: {
-      enum: [PROJECT_API_VERSION],
-    },
-    kind: {
-      enum: [PROJECT_KIND],
-    },
-    metadata: {
-      $ref: 'EntityMeta',
-    },
-    spec: {
-      type: 'object',
-      required: ['owner', 'team'],
-      properties: {
-        owner: {
-          type: 'string',
-        },
-        team: {
-          type: 'string',
-        },
+const projectDomainEntityValidator =
+  entityKindSchemaValidator<ProjectDomainEntity>({
+    type: 'object',
+    required: ['apiVersion', 'kind', 'metadata', 'spec'],
+    properties: {
+      apiVersion: {
+        enum: [PROJECT_DOMAIN_API_VERSION],
       },
-      additionalProperties: false,
+      kind: {
+        enum: [PROJECT_DOMAIN_KIND],
+      },
+      metadata: {
+        allOf: [
+          {
+            $ref: 'EntityMeta',
+          },
+          {
+            type: 'object',
+            required: ['annotations'],
+            properties: {
+              annotations: {
+                type: 'object',
+                required: [PROJECT_DOMAIN_ROLE_ANNOTATION],
+                properties: {
+                  [PROJECT_DOMAIN_ROLE_ANNOTATION]: {
+                    enum: [PROJECT_DOMAIN_ROLE],
+                  },
+                },
+                additionalProperties: true,
+              },
+            },
+          },
+        ],
+      },
+      spec: {
+        type: 'object',
+        required: ['owner', 'team'],
+        properties: {
+          owner: {
+            type: 'string',
+          },
+          team: {
+            type: 'string',
+          },
+        },
+        additionalProperties: true,
+      },
     },
-  },
-});
+  });
 
 const edgeStackEntityValidator = entityKindSchemaValidator<EdgeStackEntity>({
   type: 'object',
   required: ['apiVersion', 'kind', 'metadata', 'spec'],
   properties: {
     apiVersion: {
-      enum: [PROJECT_API_VERSION],
+      enum: ['kabang.cloud/v1'],
     },
     kind: {
       enum: [EDGE_STACK_KIND],
@@ -168,15 +195,9 @@ const edgeStackEntityValidator = entityKindSchemaValidator<EdgeStackEntity>({
   },
 });
 
-function isProjectEntity(entity: Entity): entity is ProjectEntity {
-  return (
-    entity.apiVersion === PROJECT_API_VERSION && entity.kind === PROJECT_KIND
-  );
-}
-
 function isEdgeStackEntity(entity: Entity): entity is EdgeStackEntity {
   return (
-    entity.apiVersion === PROJECT_API_VERSION && entity.kind === EDGE_STACK_KIND
+    entity.apiVersion === 'kabang.cloud/v1' && entity.kind === EDGE_STACK_KIND
   );
 }
 
@@ -197,6 +218,21 @@ function normalizeRef(
       defaultNamespace: entity.metadata.namespace,
     }),
   );
+}
+
+function normalizeProjectDomainRef(ref: string, entity: Entity): string {
+  const parsedRef = parseEntityRef(ref, {
+    defaultKind: PROJECT_DOMAIN_KIND,
+    defaultNamespace: entity.metadata.namespace,
+  });
+
+  return stringifyEntityRef({
+    ...parsedRef,
+    kind:
+      parsedRef.kind.toLocaleLowerCase('en-US') === 'project'
+        ? PROJECT_DOMAIN_KIND
+        : parsedRef.kind,
+  });
 }
 
 function emitOwnershipRelations(
@@ -272,19 +308,16 @@ function normalizeLinkedEntities(
   }));
 }
 
-export class ProjectProcessor implements CatalogProcessor {
-  constructor(
-    _config: Config,
-    private readonly logger: LoggerService,
-  ) {}
+export class ProjectDomainProcessor implements CatalogProcessor {
+  constructor(_config: Config, private readonly logger: LoggerService) {}
 
   getProcessorName(): string {
-    return 'CatalogProjectProcessor';
+    return 'CatalogProjectDomainProcessor';
   }
 
   async validateEntityKind(entity: Entity): Promise<boolean> {
-    if (isProjectEntity(entity)) {
-      return projectEntityValidator(entity) !== false;
+    if (isProjectDomainEntity(entity)) {
+      return projectDomainEntityValidator(entity) !== false;
     }
 
     if (isEdgeStackEntity(entity)) {
@@ -301,7 +334,7 @@ export class ProjectProcessor implements CatalogProcessor {
     _originLocation: LocationSpec,
     _cache: CatalogProcessorCache,
   ): Promise<Entity> {
-    if (isProjectEntity(entity)) {
+    if (isProjectDomainEntity(entity)) {
       return {
         ...entity,
         spec: {
@@ -313,11 +346,11 @@ export class ProjectProcessor implements CatalogProcessor {
     }
 
     if (isEdgeStackEntity(entity)) {
-      const projects =
-        entity.spec.projects?.length
-          ? entity.spec.projects
-          : entity.metadata.annotations?.[EDGE_STACK_PROJECT_ANNOTATION]
-            ?.split(',')
+      const projects = entity.spec.projects?.length
+        ? entity.spec.projects
+        : entity.metadata.annotations?.[EDGE_STACK_PROJECT_ANNOTATION]?.split(
+            ',',
+          )
             .map(projectRef => projectRef.trim())
             .filter(Boolean) ?? [];
 
@@ -328,7 +361,7 @@ export class ProjectProcessor implements CatalogProcessor {
           owner: normalizeRef(entity.spec.owner, entity, 'User'),
           team: normalizeRef(entity.spec.team, entity, 'Group'),
           projects: projects.map(projectRef =>
-            normalizeRef(projectRef, entity, PROJECT_KIND),
+            normalizeProjectDomainRef(projectRef, entity),
           ),
           network: entity.spec.network
             ? {
@@ -352,7 +385,9 @@ export class ProjectProcessor implements CatalogProcessor {
             ...(projects.length > 0
               ? {
                   [EDGE_STACK_PROJECT_ANNOTATION]: projects
-                    .map(projectRef => normalizeRef(projectRef, entity, PROJECT_KIND))
+                    .map(projectRef =>
+                      normalizeProjectDomainRef(projectRef, entity),
+                    )
                     .join(','),
                 }
               : {}),
@@ -365,7 +400,8 @@ export class ProjectProcessor implements CatalogProcessor {
       return entity;
     }
 
-    const projectRef = entity.metadata.annotations?.[PROJECT_COMPONENT_ANNOTATION];
+    const projectRef =
+      entity.metadata.annotations?.[PROJECT_COMPONENT_ANNOTATION];
     if (!projectRef) {
       return entity;
     }
@@ -376,10 +412,9 @@ export class ProjectProcessor implements CatalogProcessor {
         ...entity.metadata,
         annotations: {
           ...entity.metadata.annotations,
-          [PROJECT_COMPONENT_ANNOTATION]: normalizeRef(
+          [PROJECT_COMPONENT_ANNOTATION]: normalizeProjectDomainRef(
             projectRef,
             entity,
-            PROJECT_KIND,
           ),
         },
       },
@@ -392,7 +427,7 @@ export class ProjectProcessor implements CatalogProcessor {
     emit: CatalogProcessorEmit,
     _cache: CatalogProcessorCache,
   ): Promise<Entity> {
-    if (isProjectEntity(entity)) {
+    if (isProjectDomainEntity(entity)) {
       const source = getCompoundEntityRef(entity);
       const owner = parseEntityRef(entity.spec.owner, {
         defaultKind: 'User',
@@ -407,7 +442,9 @@ export class ProjectProcessor implements CatalogProcessor {
       emitOwnershipRelations(emit, source, team);
 
       this.logger.info(
-        `Processed ${PROJECT_KIND} entity ${stringifyEntityRef(entity)} with owner ${stringifyEntityRef(
+        `Processed project domain ${stringifyEntityRef(
+          entity,
+        )} with owner ${stringifyEntityRef(
           owner,
         )} and team ${stringifyEntityRef(team)}`,
       );
@@ -431,7 +468,7 @@ export class ProjectProcessor implements CatalogProcessor {
 
       for (const projectRef of entity.spec.projects ?? []) {
         const project = parseEntityRef(projectRef, {
-          defaultKind: PROJECT_KIND,
+          defaultKind: PROJECT_DOMAIN_KIND,
           defaultNamespace: entity.metadata.namespace,
         });
         emitProjectMembershipRelations(emit, source, project);
@@ -457,7 +494,9 @@ export class ProjectProcessor implements CatalogProcessor {
       }
 
       this.logger.info(
-        `Processed ${EDGE_STACK_KIND} entity ${stringifyEntityRef(entity)} with ${entity.spec.targets?.length ?? 0} traffic targets`,
+        `Processed ${EDGE_STACK_KIND} entity ${stringifyEntityRef(
+          entity,
+        )} with ${entity.spec.targets?.length ?? 0} traffic targets`,
       );
 
       return entity;
@@ -467,23 +506,24 @@ export class ProjectProcessor implements CatalogProcessor {
       return entity;
     }
 
-    const projectRef = entity.metadata.annotations?.[PROJECT_COMPONENT_ANNOTATION];
+    const projectRef =
+      entity.metadata.annotations?.[PROJECT_COMPONENT_ANNOTATION];
     if (!projectRef) {
       return entity;
     }
 
     const component = getCompoundEntityRef(entity);
     const project = parseEntityRef(projectRef, {
-      defaultKind: PROJECT_KIND,
+      defaultKind: PROJECT_DOMAIN_KIND,
       defaultNamespace: entity.metadata.namespace,
     });
 
     emitProjectMembershipRelations(emit, component, project);
 
     this.logger.info(
-      `Processed component ${stringifyEntityRef(entity)} as part of project ${stringifyEntityRef(
-        project,
-      )}`,
+      `Processed component ${stringifyEntityRef(
+        entity,
+      )} as part of project ${stringifyEntityRef(project)}`,
     );
 
     return entity;

@@ -13,11 +13,12 @@ describe('toMappedCatalogEntityDocument', () => {
           tableName: 'project_metadata',
         },
         entity: {
-          apiVersion: 'kabang.cloud/v1',
-          kind: 'Project',
+          apiVersion: 'backstage.io/v1alpha1',
+          kind: 'Domain',
           metadata: {
             name: '{{ item.project_name }}',
             annotations: {
+              'kabang.cloud/domain-role': 'project',
               'example.com/source-row-id': '{{ item.id }}',
             },
             labels: {

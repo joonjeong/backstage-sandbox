@@ -1,7 +1,9 @@
 import { Entity } from '@backstage/catalog-model';
 
-export const PROJECT_API_VERSION = 'kabang.cloud/v1';
-export const PROJECT_KIND = 'Project';
+export const PROJECT_DOMAIN_API_VERSION = 'backstage.io/v1alpha1';
+export const PROJECT_DOMAIN_KIND = 'Domain';
+export const PROJECT_DOMAIN_ROLE_ANNOTATION = 'kabang.cloud/domain-role';
+export const PROJECT_DOMAIN_ROLE = 'project';
 export const PROJECT_MEMBER_ANNOTATION = 'kabang.cloud/project';
 export const PROJECT_COMPONENT_ANNOTATION = PROJECT_MEMBER_ANNOTATION;
 export const EDGE_STACK_PROJECT_ANNOTATION = PROJECT_MEMBER_ANNOTATION;
@@ -15,9 +17,12 @@ export type EdgeStackLinkedEntity = {
   entityRef: string;
 };
 
-export type ProjectEntity = Entity & {
-  apiVersion: typeof PROJECT_API_VERSION;
-  kind: typeof PROJECT_KIND;
+export type ProjectDomainEntity = Entity & {
+  apiVersion: typeof PROJECT_DOMAIN_API_VERSION;
+  kind: typeof PROJECT_DOMAIN_KIND;
+  metadata: Entity['metadata'] & {
+    annotations?: Record<string, string>;
+  };
   spec: {
     owner: string;
     team: string;
@@ -32,7 +37,7 @@ export type ProjectAwareComponentEntity = Entity & {
 };
 
 export type EdgeStackEntity = Entity & {
-  apiVersion: typeof PROJECT_API_VERSION;
+  apiVersion: 'kabang.cloud/v1';
   kind: typeof EDGE_STACK_KIND;
   spec: {
     owner: string;
@@ -67,3 +72,19 @@ export type EdgeStackEntity = Entity & {
     annotations?: Record<string, string>;
   };
 };
+
+function normalizeProjectDomainRole(value: string | undefined): string {
+  return value?.trim().toLocaleLowerCase('en-US') ?? '';
+}
+
+export function isProjectDomainEntity(
+  entity: Entity,
+): entity is ProjectDomainEntity {
+  return (
+    entity.apiVersion === PROJECT_DOMAIN_API_VERSION &&
+    entity.kind === PROJECT_DOMAIN_KIND &&
+    normalizeProjectDomainRole(
+      entity.metadata.annotations?.[PROJECT_DOMAIN_ROLE_ANNOTATION],
+    ) === PROJECT_DOMAIN_ROLE
+  );
+}

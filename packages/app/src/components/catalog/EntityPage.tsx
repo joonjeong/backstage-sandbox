@@ -40,6 +40,7 @@ import {
   EntityCatalogGraphCard,
 } from '@backstage/plugin-catalog-graph';
 import {
+  type Entity,
   RELATION_HAS_PART,
   RELATION_API_CONSUMED_BY,
   RELATION_API_PROVIDED_BY,
@@ -58,6 +59,7 @@ import {
   isKubernetesAvailable,
 } from '@backstage/plugin-kubernetes';
 import { ProjectEntityPage } from './project/ProjectEntityPage';
+import { isProjectDomainEntity } from './project/projectDomain';
 
 const techdocsContent = (
   <EntityTechdocsContent>
@@ -404,11 +406,13 @@ export const entityPage = (
     <EntitySwitch.Case if={isKind('group')} children={groupPage} />
     <EntitySwitch.Case if={isKind('user')} children={userPage} />
     <EntitySwitch.Case if={isKind('system')} children={systemPage} />
-    <EntitySwitch.Case if={isKind('domain')} children={domainPage} />
     <EntitySwitch.Case
-      if={isKind('project')}
-      children={<ProjectEntityPage entityWarningContent={entityWarningContent} />}
+      if={(entity: Entity) => isProjectDomainEntity(entity)}
+      children={
+        <ProjectEntityPage entityWarningContent={entityWarningContent} />
+      }
     />
+    <EntitySwitch.Case if={isKind('domain')} children={domainPage} />
 
     <EntitySwitch.Case>{defaultEntityPage}</EntitySwitch.Case>
   </EntitySwitch>

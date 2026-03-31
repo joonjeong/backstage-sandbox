@@ -20,6 +20,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { CatalogTable, type CatalogTableRow } from '@backstage/plugin-catalog';
 import {
+  type DefaultEntityFilters,
   EntityKindFilter,
   EntityListProvider,
   EntityRefLink,
@@ -32,15 +33,27 @@ import {
   projectScenarioValuesFromEntity,
   type ProjectScenarioValues,
 } from './project/projectScenario';
+import {
+  PROJECT_DOMAIN_KIND,
+  ProjectDomainFilter,
+} from './project/projectDomain';
+
+type ProjectCatalogFilters = DefaultEntityFilters & {
+  projectDomain?: ProjectDomainFilter;
+};
 
 function ProjectTableFilters() {
-  const { filters, updateFilters } = useEntityList();
+  const { filters, updateFilters } = useEntityList<ProjectCatalogFilters>();
 
   useEffect(() => {
-    const updates: Record<string, unknown> = {};
+    const updates: Partial<ProjectCatalogFilters> = {};
 
-    if (filters.kind?.value !== 'project') {
-      updates.kind = new EntityKindFilter('project', 'Project');
+    if (filters.kind?.value !== 'domain') {
+      updates.kind = new EntityKindFilter('domain', PROJECT_DOMAIN_KIND);
+    }
+
+    if (!(filters.projectDomain instanceof ProjectDomainFilter)) {
+      updates.projectDomain = new ProjectDomainFilter();
     }
 
     if (filters.user?.value !== 'all') {
@@ -50,13 +63,18 @@ function ProjectTableFilters() {
     if (Object.keys(updates).length > 0) {
       updateFilters(updates);
     }
-  }, [filters.kind?.value, filters.user?.value, updateFilters]);
+  }, [
+    filters.kind?.value,
+    filters.projectDomain,
+    filters.user?.value,
+    updateFilters,
+  ]);
 
   return null;
 }
 
 const projectColumns: TableColumn<CatalogTableRow>[] = [
-  CatalogTable.columns.createNameColumn({ defaultKind: 'Project' }),
+  CatalogTable.columns.createNameColumn({ defaultKind: PROJECT_DOMAIN_KIND }),
   {
     title: 'Title',
     field: 'entity.metadata.title',
@@ -100,7 +118,7 @@ function ProjectScenarioDialog({
   const yaml = buildProjectEntityYaml(state.values);
   const isModify = state.mode === 'modify';
   const entityPath = state.entity
-    ? `/catalog/default/project/${state.entity.metadata.name}`
+    ? `/catalog/default/domain/${state.entity.metadata.name}`
     : undefined;
 
   return (
@@ -114,7 +132,7 @@ function ProjectScenarioDialog({
             <Typography color="textSecondary" variant="body2">
               {isModify
                 ? 'The existing project values are preloaded so you can plan the update path before applying it.'
-                : 'Fill in the project metadata to shape a new Project entity scenario.'}
+                : 'Fill in the project metadata to shape a new project-domain entity scenario.'}
             </Typography>
             <Box mt={2}>
               <Grid container spacing={2}>
@@ -277,7 +295,10 @@ export function ProjectCatalogContent() {
 
 export const projectCatalogPage = (
   <Page themeId="home">
-    <Header title="Projects" subtitle="Catalog project inventory" />
+    <Header
+      title="Projects"
+      subtitle="Catalog inventory backed by project domains"
+    />
     <Content>
       <EntityListProvider>
         <ProjectCatalogContent />

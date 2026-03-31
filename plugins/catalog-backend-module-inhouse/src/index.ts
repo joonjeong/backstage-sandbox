@@ -3,7 +3,7 @@ import {
   coreServices,
 } from '@backstage/backend-plugin-api';
 import { catalogProcessingExtensionPoint } from '@backstage/plugin-catalog-node';
-import { ProjectProcessor } from './processor';
+import { ProjectDomainProcessor } from './processor';
 
 export default createBackendModule({
   pluginId: 'catalog',
@@ -16,7 +16,7 @@ export default createBackendModule({
         config: coreServices.rootConfig,
       },
       async init({ catalog, logger, config }) {
-        catalog.addProcessor(new ProjectProcessor(config, logger));
+        catalog.addProcessor(new ProjectDomainProcessor(config, logger));
       },
     });
   },

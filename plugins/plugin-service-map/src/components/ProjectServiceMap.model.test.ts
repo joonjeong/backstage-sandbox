@@ -5,8 +5,8 @@ import { buildProjectServiceMapModel } from './ProjectServiceMap.model';
 describe('buildProjectServiceMapModel', () => {
   it('builds public ingress and service traffic edges from catalog data', () => {
     const project = {
-      apiVersion: 'kabang.cloud/v1',
-      kind: 'Project',
+      apiVersion: 'backstage.io/v1alpha1',
+      kind: 'Domain',
       metadata: {
         namespace: 'default',
         name: 'guest-portal',
@@ -25,7 +25,7 @@ describe('buildProjectServiceMapModel', () => {
         namespace: 'default',
         name: 'guest-portal-web',
         annotations: {
-          'kabang.cloud/project': 'project:default/guest-portal',
+          'kabang.cloud/project': 'domain:default/guest-portal',
         },
       },
       spec: {
@@ -47,7 +47,7 @@ describe('buildProjectServiceMapModel', () => {
         namespace: 'default',
         name: 'guest-portal-api',
         annotations: {
-          'kabang.cloud/project': 'project:default/guest-portal',
+          'kabang.cloud/project': 'domain:default/guest-portal',
           'kabang.cloud/service-zone': 'private',
         },
       },
@@ -95,8 +95,8 @@ describe('buildProjectServiceMapModel', () => {
 
   it('includes edge stacks as traffic entry nodes for project components', () => {
     const project = {
-      apiVersion: 'kabang.cloud/v1',
-      kind: 'Project',
+      apiVersion: 'backstage.io/v1alpha1',
+      kind: 'Domain',
       metadata: {
         namespace: 'default',
         name: 'guest-portal',
@@ -116,7 +116,7 @@ describe('buildProjectServiceMapModel', () => {
         name: 'public-web-entry-prod',
         title: 'TLS/mTLS Gateway',
         annotations: {
-          'kabang.cloud/project': 'project:default/guest-portal',
+          'kabang.cloud/project': 'domain:default/guest-portal',
         },
       },
       spec: {
@@ -140,7 +140,7 @@ describe('buildProjectServiceMapModel', () => {
         namespace: 'default',
         name: 'guest-portal-web',
         annotations: {
-          'kabang.cloud/project': 'project:default/guest-portal',
+          'kabang.cloud/project': 'domain:default/guest-portal',
         },
       },
       spec: {
@@ -179,8 +179,8 @@ describe('buildProjectServiceMapModel', () => {
 
   it('models public ingress as a domain record and keeps hosted zones as metadata', () => {
     const project = {
-      apiVersion: 'kabang.cloud/v1',
-      kind: 'Project',
+      apiVersion: 'backstage.io/v1alpha1',
+      kind: 'Domain',
       metadata: {
         namespace: 'default',
         name: 'guest-portal',
@@ -215,7 +215,7 @@ describe('buildProjectServiceMapModel', () => {
       relations: [
         {
           type: 'partOf',
-          targetRef: 'project:default/guest-portal',
+          targetRef: 'domain:default/guest-portal',
         },
         {
           type: 'routesTrafficTo',
@@ -231,7 +231,7 @@ describe('buildProjectServiceMapModel', () => {
         namespace: 'default',
         name: 'guest-portal-web',
         annotations: {
-          'kabang.cloud/project': 'project:default/guest-portal',
+          'kabang.cloud/project': 'domain:default/guest-portal',
         },
       },
       spec: {
@@ -271,8 +271,8 @@ describe('buildProjectServiceMapModel', () => {
 
   it('keeps subnet cards tightly wrapped around their nodes with balanced padding', () => {
     const project = {
-      apiVersion: 'kabang.cloud/v1',
-      kind: 'Project',
+      apiVersion: 'backstage.io/v1alpha1',
+      kind: 'Domain',
       metadata: {
         namespace: 'default',
         name: 'guest-portal',
@@ -291,7 +291,7 @@ describe('buildProjectServiceMapModel', () => {
         namespace: 'default',
         name: 'guest-portal-web',
         annotations: {
-          'kabang.cloud/project': 'project:default/guest-portal',
+          'kabang.cloud/project': 'domain:default/guest-portal',
         },
       },
       spec: {
@@ -313,7 +313,7 @@ describe('buildProjectServiceMapModel', () => {
         namespace: 'default',
         name: 'guest-portal-api',
         annotations: {
-          'kabang.cloud/project': 'project:default/guest-portal',
+          'kabang.cloud/project': 'domain:default/guest-portal',
           'kabang.cloud/service-zone': 'private',
         },
       },
@@ -366,8 +366,8 @@ describe('buildProjectServiceMapModel', () => {
 
   it('captures CloudFront and S3 runtime resources for static web components', () => {
     const project = {
-      apiVersion: 'kabang.cloud/v1',
-      kind: 'Project',
+      apiVersion: 'backstage.io/v1alpha1',
+      kind: 'Domain',
       metadata: {
         namespace: 'default',
         name: 'guest-ops-console',
@@ -387,7 +387,7 @@ describe('buildProjectServiceMapModel', () => {
         name: 'guest-ops-console-ui',
         title: 'Guest Ops Console UI',
         annotations: {
-          'kabang.cloud/project': 'project:default/guest-ops-console',
+          'kabang.cloud/project': 'domain:default/guest-ops-console',
         },
       },
       spec: {
@@ -412,7 +412,9 @@ describe('buildProjectServiceMapModel', () => {
     } as Entity;
 
     const model = buildProjectServiceMapModel(project, [ui]);
-    const uiNode = model.nodes.find(node => node.id === 'component:default/guest-ops-console-ui');
+    const uiNode = model.nodes.find(
+      node => node.id === 'component:default/guest-ops-console-ui',
+    );
 
     expect(uiNode).toEqual(
       expect.objectContaining({
@@ -433,8 +435,8 @@ describe('buildProjectServiceMapModel', () => {
 
   it('builds the app-webview topology across public, app, k8s, db, and intra subnets', () => {
     const project = {
-      apiVersion: 'kabang.cloud/v1',
-      kind: 'Project',
+      apiVersion: 'backstage.io/v1alpha1',
+      kind: 'Domain',
       metadata: {
         namespace: 'default',
         name: 'app-webview',
@@ -470,7 +472,7 @@ describe('buildProjectServiceMapModel', () => {
       relations: [
         {
           type: 'partOf',
-          targetRef: 'project:default/app-webview',
+          targetRef: 'domain:default/app-webview',
         },
         {
           type: 'routesTrafficTo',
@@ -497,7 +499,7 @@ describe('buildProjectServiceMapModel', () => {
       relations: [
         {
           type: 'partOf',
-          targetRef: 'project:default/app-webview',
+          targetRef: 'domain:default/app-webview',
         },
         {
           type: 'routesTrafficTo',
@@ -514,7 +516,7 @@ describe('buildProjectServiceMapModel', () => {
         name: 'app-webview-static-web-view',
         title: 'Static Web View',
         annotations: {
-          'kabang.cloud/project': 'project:default/app-webview',
+          'kabang.cloud/project': 'domain:default/app-webview',
         },
       },
       spec: {
@@ -544,7 +546,7 @@ describe('buildProjectServiceMapModel', () => {
         name: 'app-webview-workload',
         title: 'App Webview Workload',
         annotations: {
-          'kabang.cloud/project': 'project:default/app-webview',
+          'kabang.cloud/project': 'domain:default/app-webview',
           'kabang.cloud/service-zone': 'k8s',
         },
       },
@@ -563,7 +565,7 @@ describe('buildProjectServiceMapModel', () => {
         name: 'app-webview-redis',
         title: 'Redis Cache',
         annotations: {
-          'kabang.cloud/project': 'project:default/app-webview',
+          'kabang.cloud/project': 'domain:default/app-webview',
           'kabang.cloud/service-zone': 'app',
         },
       },
@@ -582,7 +584,7 @@ describe('buildProjectServiceMapModel', () => {
         name: 'app-webview-mysql',
         title: 'MySQL Database',
         annotations: {
-          'kabang.cloud/project': 'project:default/app-webview',
+          'kabang.cloud/project': 'domain:default/app-webview',
           'kabang.cloud/service-zone': 'db',
         },
       },
@@ -601,7 +603,7 @@ describe('buildProjectServiceMapModel', () => {
         name: 'app-webview-ldap',
         title: 'LDAP Directory',
         annotations: {
-          'kabang.cloud/project': 'project:default/app-webview',
+          'kabang.cloud/project': 'domain:default/app-webview',
           'kabang.cloud/service-zone': 'intra',
         },
       },
@@ -622,15 +624,13 @@ describe('buildProjectServiceMapModel', () => {
       ldap,
     ]);
 
-    expect(model.zones).toEqual(
-      [
-        expect.objectContaining({ id: 'public', title: 'Public Subnet' }),
-        expect.objectContaining({ id: 'k8s', title: 'K8s Subnet' }),
-        expect.objectContaining({ id: 'app', title: 'App Subnet' }),
-        expect.objectContaining({ id: 'db', title: 'DB Subnet' }),
-        expect.objectContaining({ id: 'intra', title: 'Intra Subnet' }),
-      ],
-    );
+    expect(model.zones).toEqual([
+      expect.objectContaining({ id: 'public', title: 'Public Subnet' }),
+      expect.objectContaining({ id: 'k8s', title: 'K8s Subnet' }),
+      expect.objectContaining({ id: 'app', title: 'App Subnet' }),
+      expect.objectContaining({ id: 'db', title: 'DB Subnet' }),
+      expect.objectContaining({ id: 'intra', title: 'Intra Subnet' }),
+    ]);
 
     expect(model.edges).toEqual(
       expect.arrayContaining([
@@ -679,13 +679,17 @@ describe('buildProjectServiceMapModel', () => {
     const dbZone = flow.nodes.find(node => node.id === 'zone:db');
     const intraZone = flow.nodes.find(node => node.id === 'zone:intra');
 
-    expect(flow.nodes.find(node => node.id === 'zone-group:private')).toBeUndefined();
-    expect((appZone?.position.x ?? 0)).toBeGreaterThan(publicZone?.position.x ?? 0);
+    expect(
+      flow.nodes.find(node => node.id === 'zone-group:private'),
+    ).toBeUndefined();
+    expect(appZone?.position.x ?? 0).toBeGreaterThan(
+      publicZone?.position.x ?? 0,
+    );
     expect(appZone?.position.x).toBe(k8sZone?.position.x);
-    expect((k8sZone?.position.y ?? 0)).toBeGreaterThan(appZone?.position.y ?? 0);
-    expect((dbZone?.position.x ?? 0)).toBeGreaterThan(appZone?.position.x ?? 0);
+    expect(k8sZone?.position.y ?? 0).toBeGreaterThan(appZone?.position.y ?? 0);
+    expect(dbZone?.position.x ?? 0).toBeGreaterThan(appZone?.position.x ?? 0);
     expect(dbZone?.position.x).toBe(intraZone?.position.x);
-    expect((intraZone?.position.y ?? 0)).toBeGreaterThan(dbZone?.position.y ?? 0);
+    expect(intraZone?.position.y ?? 0).toBeGreaterThan(dbZone?.position.y ?? 0);
     expect(appZone?.style?.width).toBe(k8sZone?.style?.width);
     expect(dbZone?.style?.width).toBe(intraZone?.style?.width);
     expect(
@@ -703,8 +707,8 @@ describe('buildProjectServiceMapModel', () => {
 
   it('groups direct-entry private subnets before intra and keeps intra last', () => {
     const project = {
-      apiVersion: 'kabang.cloud/v1',
-      kind: 'Project',
+      apiVersion: 'backstage.io/v1alpha1',
+      kind: 'Domain',
       metadata: {
         namespace: 'default',
         name: 'networked-app',
@@ -722,7 +726,7 @@ describe('buildProjectServiceMapModel', () => {
         namespace: 'default',
         name: 'app-workload',
         annotations: {
-          'kabang.cloud/project': 'project:default/networked-app',
+          'kabang.cloud/project': 'domain:default/networked-app',
           'kabang.cloud/service-zone': 'app',
         },
       },
@@ -745,7 +749,7 @@ describe('buildProjectServiceMapModel', () => {
         namespace: 'default',
         name: 'k8s-workload',
         annotations: {
-          'kabang.cloud/project': 'project:default/networked-app',
+          'kabang.cloud/project': 'domain:default/networked-app',
           'kabang.cloud/service-zone': 'k8s',
           'kabang.cloud/traffic-targets': 'component:default/app-workload',
         },
@@ -808,7 +812,7 @@ describe('buildProjectServiceMapModel', () => {
         namespace: 'default',
         name: 'intra-ldap',
         annotations: {
-          'kabang.cloud/project': 'project:default/networked-app',
+          'kabang.cloud/project': 'domain:default/networked-app',
           'kabang.cloud/service-zone': 'intra',
         },
       },
@@ -827,13 +831,18 @@ describe('buildProjectServiceMapModel', () => {
       intra,
     ]);
 
-    expect(model.zones.map(zone => zone.id)).toEqual(['public', 'app', 'k8s', 'intra']);
+    expect(model.zones.map(zone => zone.id)).toEqual([
+      'public',
+      'app',
+      'k8s',
+      'intra',
+    ]);
   });
 
   it('treats shared edge stacks as project members via partOf relations and hides off-project targets', () => {
     const project = {
-      apiVersion: 'kabang.cloud/v1',
-      kind: 'Project',
+      apiVersion: 'backstage.io/v1alpha1',
+      kind: 'Domain',
       metadata: {
         namespace: 'default',
         name: 'guest-portal',
@@ -862,7 +871,7 @@ describe('buildProjectServiceMapModel', () => {
       relations: [
         {
           type: 'partOf',
-          targetRef: 'project:default/guest-portal',
+          targetRef: 'domain:default/guest-portal',
         },
         {
           type: 'routesTrafficTo',
@@ -882,7 +891,7 @@ describe('buildProjectServiceMapModel', () => {
         namespace: 'default',
         name: 'guest-portal-web',
         annotations: {
-          'kabang.cloud/project': 'project:default/guest-portal',
+          'kabang.cloud/project': 'domain:default/guest-portal',
         },
       },
       spec: {
@@ -914,8 +923,8 @@ describe('buildProjectServiceMapModel', () => {
 
   it('keeps room for additional catalog-defined zones', () => {
     const project = {
-      apiVersion: 'kabang.cloud/v1',
-      kind: 'Project',
+      apiVersion: 'backstage.io/v1alpha1',
+      kind: 'Domain',
       metadata: {
         namespace: 'default',
         name: 'payments',
@@ -933,7 +942,7 @@ describe('buildProjectServiceMapModel', () => {
         namespace: 'default',
         name: 'payments-worker',
         annotations: {
-          'kabang.cloud/project': 'project:default/payments',
+          'kabang.cloud/project': 'domain:default/payments',
           'kabang.cloud/service-zone': 'batch',
         },
       },

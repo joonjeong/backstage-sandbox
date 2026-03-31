@@ -1,4 +1,8 @@
 import type { Entity } from '@backstage/catalog-model';
+import {
+  PROJECT_DOMAIN_ROLE,
+  PROJECT_DOMAIN_ROLE_ANNOTATION,
+} from './projectDomain';
 
 export type ProjectScenarioValues = {
   name: string;
@@ -35,8 +39,8 @@ function valueOrPlaceholder(value: string, placeholder: string) {
 
 export function buildProjectEntityYaml(values: ProjectScenarioValues): string {
   return [
-    'apiVersion: kabang.cloud/v1',
-    'kind: Project',
+    'apiVersion: backstage.io/v1alpha1',
+    'kind: Domain',
     'metadata:',
     `  name: ${valueOrPlaceholder(values.name, '<project-name>')}`,
     `  title: ${valueOrPlaceholder(values.title, '<Project Title>')}`,
@@ -44,6 +48,8 @@ export function buildProjectEntityYaml(values: ProjectScenarioValues): string {
       values.description,
       '<Project description>',
     )}`,
+    '  annotations:',
+    `    ${PROJECT_DOMAIN_ROLE_ANNOTATION}: ${PROJECT_DOMAIN_ROLE}`,
     'spec:',
     `  owner: ${valueOrPlaceholder(values.owner, 'user:default/<owner>')}`,
     `  team: ${valueOrPlaceholder(values.team, 'group:default/<team>')}`,

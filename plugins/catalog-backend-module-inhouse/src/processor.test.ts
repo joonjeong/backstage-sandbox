@@ -7,18 +7,19 @@ import {
 } from '@backstage/catalog-model';
 import {
   PROJECT_COMPONENT_ANNOTATION,
+  PROJECT_DOMAIN_ROLE,
+  PROJECT_DOMAIN_ROLE_ANNOTATION,
   RELATION_RECEIVES_TRAFFIC_FROM,
   RELATION_ROUTES_TRAFFIC_TO,
 } from './types';
 import { ConfigReader } from '@backstage/config';
-import { ProjectProcessor } from './processor';
+import { ProjectDomainProcessor } from './processor';
 
-describe('ProjectProcessor', () => {
+describe('ProjectDomainProcessor', () => {
   it('ignores non-project entities during validation', async () => {
-    const processor = new ProjectProcessor(
-      new ConfigReader({}),
-      { info: jest.fn() } as any,
-    );
+    const processor = new ProjectDomainProcessor(new ConfigReader({}), {
+      info: jest.fn(),
+    } as any);
 
     await expect(
       processor.validateEntityKind({
@@ -36,18 +37,20 @@ describe('ProjectProcessor', () => {
     ).resolves.toBe(false);
   });
 
-  it('rejects invalid Project entities that miss required fields', async () => {
-    const processor = new ProjectProcessor(
-      new ConfigReader({}),
-      { info: jest.fn() } as any,
-    );
+  it('rejects invalid project domains that miss required fields', async () => {
+    const processor = new ProjectDomainProcessor(new ConfigReader({}), {
+      info: jest.fn(),
+    } as any);
 
     await expect(
       processor.validateEntityKind({
-        apiVersion: 'kabang.cloud/v1',
-        kind: 'Project',
+        apiVersion: 'backstage.io/v1alpha1',
+        kind: 'Domain',
         metadata: {
           name: 'payments-platform',
+          annotations: {
+            [PROJECT_DOMAIN_ROLE_ANNOTATION]: PROJECT_DOMAIN_ROLE,
+          },
         },
         spec: {
           owner: 'alice',
@@ -57,17 +60,19 @@ describe('ProjectProcessor', () => {
   });
 
   it('normalizes owner and team refs during preprocessing', async () => {
-    const processor = new ProjectProcessor(
-      new ConfigReader({}),
-      { info: jest.fn() } as any,
-    );
+    const processor = new ProjectDomainProcessor(new ConfigReader({}), {
+      info: jest.fn(),
+    } as any);
 
     const processed = await processor.preProcessEntity(
       {
-        apiVersion: 'kabang.cloud/v1',
-        kind: 'Project',
+        apiVersion: 'backstage.io/v1alpha1',
+        kind: 'Domain',
         metadata: {
           name: 'payments-platform',
+          annotations: {
+            [PROJECT_DOMAIN_ROLE_ANNOTATION]: PROJECT_DOMAIN_ROLE,
+          },
         },
         spec: {
           owner: 'alice',
@@ -92,17 +97,19 @@ describe('ProjectProcessor', () => {
 
   it('emits owner relations for both owner and team', async () => {
     const emit = jest.fn();
-    const processor = new ProjectProcessor(
-      new ConfigReader({}),
-      { info: jest.fn() } as any,
-    );
+    const processor = new ProjectDomainProcessor(new ConfigReader({}), {
+      info: jest.fn(),
+    } as any);
 
     const processed = await processor.preProcessEntity(
       {
-        apiVersion: 'kabang.cloud/v1',
-        kind: 'Project',
+        apiVersion: 'backstage.io/v1alpha1',
+        kind: 'Domain',
         metadata: {
           name: 'payments-platform',
+          annotations: {
+            [PROJECT_DOMAIN_ROLE_ANNOTATION]: PROJECT_DOMAIN_ROLE,
+          },
         },
         spec: {
           owner: 'alice',
@@ -133,33 +140,32 @@ describe('ProjectProcessor', () => {
       expect.arrayContaining([
         {
           type: RELATION_OWNED_BY,
-          source: 'project:default/payments-platform',
+          source: 'domain:default/payments-platform',
           target: 'user:default/alice',
         },
         {
           type: RELATION_OWNER_OF,
           source: 'user:default/alice',
-          target: 'project:default/payments-platform',
+          target: 'domain:default/payments-platform',
         },
         {
           type: RELATION_OWNED_BY,
-          source: 'project:default/payments-platform',
+          source: 'domain:default/payments-platform',
           target: 'group:default/platform',
         },
         {
           type: RELATION_OWNER_OF,
           source: 'group:default/platform',
-          target: 'project:default/payments-platform',
+          target: 'domain:default/payments-platform',
         },
       ]),
     );
   });
 
   it('normalizes component project annotations during preprocessing', async () => {
-    const processor = new ProjectProcessor(
-      new ConfigReader({}),
-      { info: jest.fn() } as any,
-    );
+    const processor = new ProjectDomainProcessor(new ConfigReader({}), {
+      info: jest.fn(),
+    } as any);
 
     const processed = await processor.preProcessEntity(
       {
@@ -168,7 +174,7 @@ describe('ProjectProcessor', () => {
         metadata: {
           name: 'guest-ops-api',
           annotations: {
-            [PROJECT_COMPONENT_ANNOTATION]: 'guest-ops-console',
+            [PROJECT_COMPONENT_ANNOTATION]: 'project:default/guest-ops-console',
           },
         },
         spec: {
@@ -185,17 +191,16 @@ describe('ProjectProcessor', () => {
 
     expect(processed.metadata.annotations).toEqual(
       expect.objectContaining({
-        [PROJECT_COMPONENT_ANNOTATION]: 'project:default/guest-ops-console',
+        [PROJECT_COMPONENT_ANNOTATION]: 'domain:default/guest-ops-console',
       }),
     );
   });
 
   it('emits partOf and hasPart relations for project-aware components', async () => {
     const emit = jest.fn();
-    const processor = new ProjectProcessor(
-      new ConfigReader({}),
-      { info: jest.fn() } as any,
-    );
+    const processor = new ProjectDomainProcessor(new ConfigReader({}), {
+      info: jest.fn(),
+    } as any);
 
     const processed = await processor.preProcessEntity(
       {
@@ -204,7 +209,7 @@ describe('ProjectProcessor', () => {
         metadata: {
           name: 'guest-ops-api',
           annotations: {
-            [PROJECT_COMPONENT_ANNOTATION]: 'guest-ops-console',
+            [PROJECT_COMPONENT_ANNOTATION]: 'project:default/guest-ops-console',
           },
         },
         spec: {
@@ -237,11 +242,11 @@ describe('ProjectProcessor', () => {
         {
           type: RELATION_PART_OF,
           source: 'component:default/guest-ops-api',
-          target: 'project:default/guest-ops-console',
+          target: 'domain:default/guest-ops-console',
         },
         {
           type: RELATION_HAS_PART,
-          source: 'project:default/guest-ops-console',
+          source: 'domain:default/guest-ops-console',
           target: 'component:default/guest-ops-api',
         },
       ]),
@@ -250,10 +255,9 @@ describe('ProjectProcessor', () => {
 
   it('normalizes edge stack refs and emits traffic relations', async () => {
     const emit = jest.fn();
-    const processor = new ProjectProcessor(
-      new ConfigReader({}),
-      { info: jest.fn() } as any,
-    );
+    const processor = new ProjectDomainProcessor(new ConfigReader({}), {
+      info: jest.fn(),
+    } as any);
 
     const processed = await processor.preProcessEntity(
       {
@@ -266,7 +270,7 @@ describe('ProjectProcessor', () => {
           owner: 'alice',
           team: 'platform',
           pattern: 'public-web-entry',
-          projects: ['guest-portal'],
+          projects: ['project:default/guest-portal'],
           attachments: [
             {
               role: 'shield',
@@ -300,7 +304,7 @@ describe('ProjectProcessor', () => {
         spec: expect.objectContaining({
           owner: 'user:default/alice',
           team: 'group:default/platform',
-          projects: ['project:default/guest-portal'],
+          projects: ['domain:default/guest-portal'],
           attachments: [
             expect.objectContaining({
               entityRef: 'resource:default/shared-waf',
@@ -348,11 +352,11 @@ describe('ProjectProcessor', () => {
         {
           type: RELATION_PART_OF,
           source: 'edgestack:default/public-web-entry-prod',
-          target: 'project:default/guest-portal',
+          target: 'domain:default/guest-portal',
         },
         {
           type: RELATION_HAS_PART,
-          source: 'project:default/guest-portal',
+          source: 'domain:default/guest-portal',
           target: 'edgestack:default/public-web-entry-prod',
         },
         {
